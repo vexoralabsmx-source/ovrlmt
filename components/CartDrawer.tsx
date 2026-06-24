@@ -5,13 +5,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Copy, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useCart } from "@/components/CartProvider";
-import { ACCOUNT_NAME, BANK_CARD, BANK_NAME, FREE_SHIPPING_MINIMUM, PRODUCT_PRICE, WHATSAPP_NUMBER } from "@/data/store";
+import { ACCOUNT_NAME, BANK_CARD, BANK_NAME, FREE_SHIPPING_MINIMUM, PRODUCT_PRICE, WHATSAPP_NUMBER, isLocalDeliveryPostalCode } from "@/data/store";
 
 const money = (value: number) => `$${value.toLocaleString("es-MX")} MXN`;
 
 export function CartDrawer() {
   const cart = useCart();
   const [copied, setCopied] = useState(false);
+  const [postalCode, setPostalCode] = useState("");
+  const localDelivery = isLocalDeliveryPostalCode(postalCode);
+  const checkoutShipping = localDelivery ? 0 : cart.shipping;
+  const checkoutTotal = cart.subtotal + checkoutShipping;
 
   async function copyPayment() {
     await navigator.clipboard.writeText(`${BANK_NAME}\n${ACCOUNT_NAME}\n${BANK_CARD}`);
@@ -24,8 +28,9 @@ export function CartDrawer() {
     const data = new FormData(event.currentTarget);
     const products = cart.items.map((item) => `${item.name} — Talla ${item.size} — ${item.quantity} pieza${item.quantity > 1 ? "s" : ""}`).join("\n");
     const address = `${data.get("address")}, ${data.get("city")}, ${data.get("state")}, C.P. ${data.get("postal")}`;
-    const shipping = cart.shipping === 0 ? "Envío gratis" : money(cart.shipping);
-    const message = `Hola, quiero confirmar mi preorden de OVRLMT.\n\nNombre:\n${data.get("name")}\n\nPedido:\n${products}\n\nSubtotal:\n${money(cart.subtotal)}\n\nEnvío:\n${shipping}\n\nTotal:\n${money(cart.total)}\n\nDirección:\n${address}\n\nYa realicé el pago y adjunto mi comprobante.`;
+    const shipping = localDelivery ? "Entrega presencial gratis (zona por confirmar con el vendedor)" : checkoutShipping === 0 ? "Envío gratis" : money(checkoutShipping);
+    const deliveryNote = localDelivery ? "\n\nEntrega presencial:\nQuiero acordar contigo el punto, fecha y horario de entrega. Entiendo que la zona está sujeta a confirmación." : "";
+    const message = `Hola, quiero confirmar mi preorden de OVRLMT.\n\nNombre:\n${data.get("name")}\n\nPedido:\n${products}\n\nSubtotal:\n${money(cart.subtotal)}\n\nEnvío:\n${shipping}\n\nTotal:\n${money(checkoutTotal)}\n\nDirección:\n${address}${deliveryNote}\n\nYa realicé el pago y adjunto mi comprobante.`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   }
 
@@ -47,7 +52,7 @@ export function CartDrawer() {
               </div><button className="remove-item" onClick={() => cart.removeItem(item.slug, item.size)} aria-label={`Eliminar ${item.name}`}><Trash2 size={15} /></button>
             </article>)}
           </div>
-          {cart.items.length > 0 && <div className="cart-summary"><p className={cart.subtotal >= FREE_SHIPPING_MINIMUM ? "shipping-ok" : ""}>{shippingMessage}</p><dl><div><dt>SUBTOTAL</dt><dd>{money(cart.subtotal)}</dd></div><div><dt>ENVÍO</dt><dd>{cart.shipping === 0 ? "GRATIS" : money(cart.shipping)}</dd></div><div className="cart-total"><dt>TOTAL</dt><dd>{money(cart.total)}</dd></div></dl><button className="checkout-trigger" onClick={cart.openCheckout}>FINALIZAR PREORDEN <span>↗</span></button><small>Pago seguro por transferencia / Confirmación vía WhatsApp</small></div>}
+          {cart.items.length > 0 && <div className="cart-summary"><p className={cart.subtotal >= FREE_SHIPPING_MINIMUM ? "shipping-ok" : ""}>{shippingMessage}</p><div className="local-delivery-hint">PUEBLA CENTRO / ANGELÓPOLIS / ZONAS CERCANAS<br /><span>Entrega presencial gratuita, sujeta a confirmación por código postal.</span></div><dl><div><dt>SUBTOTAL</dt><dd>{money(cart.subtotal)}</dd></div><div><dt>ENVÍO</dt><dd>{cart.shipping === 0 ? "GRATIS" : money(cart.shipping)}</dd></div><div className="cart-total"><dt>TOTAL</dt><dd>{money(cart.total)}</dd></div></dl><button className="checkout-trigger" onClick={cart.openCheckout}>FINALIZAR PREORDEN <span>↗</span></button><small>Pago seguro por transferencia / Confirmación vía WhatsApp</small></div>}
         </motion.aside>
       </motion.div>}
     </AnimatePresence>
@@ -63,13 +68,14 @@ export function CartDrawer() {
                 <label><span>WHATSAPP *</span><input name="whatsapp" required type="tel" autoComplete="tel" placeholder="+52" /></label>
                 <label><span>CIUDAD *</span><input name="city" required autoComplete="address-level2" placeholder="CIUDAD" /></label>
                 <label><span>ESTADO *</span><input name="state" required autoComplete="address-level1" placeholder="ESTADO" /></label>
-                <label><span>CÓDIGO POSTAL *</span><input name="postal" required inputMode="numeric" autoComplete="postal-code" placeholder="00000" /></label>
+                <label><span>CÓDIGO POSTAL *</span><input name="postal" required inputMode="numeric" autoComplete="postal-code" maxLength={5} pattern="[0-9]{5}" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 5))} placeholder="00000" /></label>
+                {postalCode.length === 5 && <div className={`postal-result wide ${localDelivery ? "local" : "standard"}`}>{localDelivery ? <><b>ENTREGA PRESENCIAL GRATIS DISPONIBLE</b><span>La zona, el punto y el horario se confirman directamente con el vendedor por WhatsApp. Algunas zonas de difícil acceso pueden requerir otra opción de entrega.</span></> : <><b>ENVÍO ESTÁNDAR</b><span>Este código postal no está dentro de la zona de entrega presencial detectada. Se aplicará el envío correspondiente.</span></>}</div>}
                 <label className="wide"><span>DIRECCIÓN COMPLETA *</span><textarea name="address" required autoComplete="street-address" rows={2} placeholder="CALLE, NÚMERO, COLONIA Y REFERENCIAS" /></label>
                 <label className="wide"><span>NOTAS DEL PEDIDO</span><textarea name="notes" rows={2} placeholder="INDICACIONES ADICIONALES (OPCIONAL)" /></label>
               </div>
             </div>
             <aside className="payment-column">
-              <div className="order-review"><p className="checkout-step">02 / RESUMEN</p>{cart.items.map((item) => <div className="review-item" key={`${item.slug}-${item.size}`}><span>{item.quantity}× {item.name}<small>TALLA {item.size}</small></span><b>{money(item.quantity * PRODUCT_PRICE)}</b></div>)}<dl><div><dt>SUBTOTAL</dt><dd>{money(cart.subtotal)}</dd></div><div><dt>ENVÍO</dt><dd>{cart.shipping === 0 ? "ENVÍO GRATIS" : money(cart.shipping)}</dd></div><div><dt>TOTAL FINAL</dt><dd>{money(cart.total)}</dd></div></dl></div>
+              <div className="order-review"><p className="checkout-step">02 / RESUMEN</p>{cart.items.map((item) => <div className="review-item" key={`${item.slug}-${item.size}`}><span>{item.quantity}× {item.name}<small>TALLA {item.size}</small></span><b>{money(item.quantity * PRODUCT_PRICE)}</b></div>)}<dl><div><dt>SUBTOTAL</dt><dd>{money(cart.subtotal)}</dd></div><div><dt>ENVÍO</dt><dd>{localDelivery ? "ENTREGA PRESENCIAL GRATIS*" : checkoutShipping === 0 ? "ENVÍO GRATIS" : money(checkoutShipping)}</dd></div><div><dt>TOTAL FINAL</dt><dd>{money(checkoutTotal)}</dd></div></dl>{localDelivery && <small className="review-delivery-note">* Sujeto a confirmación de zona, punto y horario con el vendedor.</small>}</div>
               <div className="bank-card"><div className="bank-top"><p className="checkout-step">03 / PAGO</p><span>TRANSFER ONLY</span></div><h3>Pago por transferencia</h3><p>Realiza tu pago por transferencia y envía tu comprobante por WhatsApp con tu nombre completo para confirmar tu preorden.</p><dl><div><dt>BANCO</dt><dd>{BANK_NAME}</dd></div><div><dt>NOMBRE</dt><dd>{ACCOUNT_NAME}</dd></div><div><dt>TARJETA</dt><dd>{BANK_CARD}</dd></div></dl><button type="button" className="copy-bank" onClick={copyPayment}>{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? "DATOS COPIADOS" : "COPIAR DATOS DE PAGO"}</button><small>Tu preorden queda apartada únicamente después de enviar tu comprobante de pago.</small></div>
               <label className="terms-check"><input type="checkbox" required /><span>Entiendo que mi preorden se confirma únicamente después de enviar mi comprobante de pago por WhatsApp.</span></label>
               <button className="whatsapp-submit" type="submit">ENVIAR COMPROBANTE POR WHATSAPP <span>↗</span></button>
