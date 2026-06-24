@@ -16,7 +16,7 @@ export default function Home() {
         <p className="eyebrow">STREET UNIT 001 <i /></p>
         <div className="hero-logo-wrap"><Image className="hero-brand-logo" src="/brand/ovrlmt-logo.png" alt="OVRLMT" width={2048} height={682} priority /></div>
         <div className="hero-sub"><h2>BUILT AFTER DARK</h2><p>Streetwear mexicano inspirado en velocidad,<br /> ciudad y límites rotos.</p></div>
-        <div className="hero-actions"><Link className="btn primary" href="/drop">VER DROP 001 <ArrowUpRight size={16} /></Link><Link className="btn ghost" href="/contact">UNIRME A LA PREVENTA</Link></div>
+        <div className="hero-actions"><Link className="btn primary" href="/drop">VER DROP 001 <ArrowUpRight size={16} /></Link><Link className="btn ghost" href="/drop">UNIRME A LA PREVENTA</Link></div>
       </div>
       <div className="scroll-mark"><span>SCROLL TO BREAK LIMITS</span><ArrowDown size={16} /></div>
       <div className="hero-number">01</div>
@@ -40,7 +40,7 @@ export default function Home() {
     </section>
 
     <section className="home-cta">
-      <div className="cta-road" /><p>DROP CODE: AD-001</p><Reveal><h2>DROP 001<br /><em>IS COMING.</em></h2></Reveal><Link className="btn primary jumbo" href="/contact">JOIN PREORDER <ArrowUpRight /></Link><span className="cta-meta">PRIVATE RUN CLUB / MEMBERS ONLY</span>
+      <div className="cta-road" /><p>DROP CODE: AD-001</p><Reveal><h2>DROP 001<br /><em>IS COMING.</em></h2></Reveal><Link className="btn primary jumbo" href="/drop">JOIN PREORDER <ArrowUpRight /></Link><span className="cta-meta">PRIVATE RUN CLUB / MEMBERS ONLY</span>
     </section>
   </PageFrame>;
 }

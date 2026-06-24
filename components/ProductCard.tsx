@@ -3,10 +3,16 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import type { MouseEvent } from "react";
+import { Minus, Plus } from "lucide-react";
+import { useState, type MouseEvent } from "react";
 import type { Product } from "@/data/products";
+import { SIZES, type ProductSize } from "@/data/store";
+import { useCart } from "@/components/CartProvider";
 
 export function ProductCard({ product, index }: { product: Product; index: number }) {
+  const cart = useCart();
+  const [size, setSize] = useState<ProductSize>("M");
+  const [quantity, setQuantity] = useState(1);
   const x = useMotionValue(0), y = useMotionValue(0);
   const rx = useSpring(useTransform(y, [-.5, .5], [6, -6]), { stiffness: 180, damping: 20 });
   const ry = useSpring(useTransform(x, [-.5, .5], [-6, 6]), { stiffness: 180, damping: 20 });
@@ -18,7 +24,11 @@ export function ProductCard({ product, index }: { product: Product; index: numbe
       <div className="scanline" />
       <span className="product-view">VER DETALLES ↗</span>
     </Link>
-    <div className="product-info"><div><p>{product.status}</p><h3>{product.name}</h3></div><span>{product.price}</span></div>
+    <div className="product-info"><div><p>PREORDEN LIMITADA</p><h3>{product.name}</h3></div><span>{product.price}</span></div>
+    <div className="quick-buy">
+      <div className="quick-buy-row"><div className="card-sizes" aria-label="Seleccionar talla">{SIZES.map((item) => <button key={item} type="button" className={size === item ? "selected" : ""} onClick={() => setSize(item)}>{item}</button>)}</div><div className="card-qty"><button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Restar cantidad"><Minus size={11} /></button><span>{quantity}</span><button type="button" onClick={() => setQuantity(quantity + 1)} aria-label="Sumar cantidad"><Plus size={11} /></button></div></div>
+      <button className="add-cart" type="button" onClick={() => cart.addItem(product, size, quantity)}>AGREGAR AL CARRITO <span>↗</span></button>
+    </div>
     <div className="product-actions"><span>{product.units} PIEZAS / {product.fit}</span><Link href={`/drop/${product.slug}`}>VER DETALLES ↗</Link></div>
   </motion.article>;
 }

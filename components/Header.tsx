@@ -4,12 +4,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, ShoppingBag, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useCart } from "@/components/CartProvider";
 
 const links = [["HOME", "/"], ["DROP", "/drop"], ["STORY", "/story"], ["SIZE GUIDE", "/size-guide"], ["CONTACT", "/contact"]];
 
 export function Header() {
+  const cart = useCart();
   const path = usePathname();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [path]);
@@ -18,7 +20,8 @@ export function Header() {
     <header className="nav-shell">
       <Link href="/" className="brand-logo" aria-label="OVRLMT Home"><Image src="/brand/ovrlmt-logo.png" alt="OVRLMT" width={132} height={44} priority /></Link>
       <nav className="desktop-nav">{links.map(([label, href]) => <Link className={path === href ? "active" : ""} href={href} key={href}>{label}</Link>)}</nav>
-      <Link className="nav-cta" href="/contact">PREORDER <span>↗</span></Link>
+      <Link className="nav-cta" href="/drop">PREORDER <span>↗</span></Link>
+      <button className="cart-toggle" onClick={cart.openCart} aria-label={`Abrir carrito, ${cart.itemCount} productos`}><ShoppingBag size={17} /><span>{cart.itemCount}</span></button>
       <button className="menu-toggle" onClick={() => setOpen(true)} aria-label="Open menu"><Menu size={22} /></button>
     </header>
     <AnimatePresence>{open && <motion.div className="mobile-menu" initial={{ clipPath: "inset(0 0 100% 0)" }} animate={{ clipPath: "inset(0 0 0% 0)" }} exit={{ clipPath: "inset(0 0 100% 0)" }} transition={{ duration: .7, ease: [0.77, 0, .18, 1] }}>

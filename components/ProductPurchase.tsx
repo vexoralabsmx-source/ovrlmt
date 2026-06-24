@@ -3,19 +3,22 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Product } from "@/data/products";
-
-const sizes = ["S", "M", "L", "XL", "XXL"];
+import { SIZES, type ProductSize } from "@/data/store";
+import { useCart } from "@/components/CartProvider";
+import { Minus, Plus } from "lucide-react";
 
 export function ProductPurchase({ product }: { product: Product }) {
-  const [size, setSize] = useState("M");
-  const message = `Hola, quiero pedir la ${product.name} (${product.code}) del DROP 001.\nTalla: ${size}\nPrecio: ${product.price}\n¿Sigue disponible?`;
+  const cart = useCart();
+  const [size, setSize] = useState<ProductSize>("M");
+  const [quantity, setQuantity] = useState(1);
 
   return <div className="purchase-box">
     <div className="size-heading"><span>SELECCIONA TU TALLA</span><Link href="/size-guide">VER GUÍA DE TALLAS ↗</Link></div>
     <div className="size-options" role="group" aria-label="Seleccionar talla">
-      {sizes.map((item) => <button key={item} type="button" className={size === item ? "selected" : ""} onClick={() => setSize(item)} aria-pressed={size === item}>{item}</button>)}
+      {SIZES.map((item) => <button key={item} type="button" className={size === item ? "selected" : ""} onClick={() => setSize(item)} aria-pressed={size === item}>{item}</button>)}
     </div>
-    <a className="purchase-button" href={`https://wa.me/522212683069?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer"><span>PEDIR POR WHATSAPP — {product.price}</span><span>↗</span></a>
-    <p className="purchase-note">Tu pedido se confirma directamente por WhatsApp. La selección de talla no reserva inventario hasta recibir confirmación.</p>
+    <div className="detail-quantity"><span>CANTIDAD</span><div className="qty-control"><button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))}><Minus size={12} /></button><span>{quantity}</span><button type="button" onClick={() => setQuantity(quantity + 1)}><Plus size={12} /></button></div></div>
+    <button className="purchase-button" type="button" onClick={() => cart.addItem(product, size, quantity)}><span>AGREGAR AL CARRITO — {product.price}</span><span>↗</span></button>
+    <p className="purchase-note">Preorden limitada. Tu pieza queda apartada después de enviar el comprobante de pago.</p>
   </div>;
 }
