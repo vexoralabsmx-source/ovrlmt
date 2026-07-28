@@ -495,6 +495,15 @@ em { font-style:normal; color:transparent; -webkit-text-stroke:1px var(--steel);
 .low-stock-alert b { color:white; }
 .product-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 18px; }
 .product-form-grid .wide { grid-column:1/-1; }
+.catalog-placement { grid-column:1/-1; margin:16px 0 22px; padding:18px; border:1px solid #ffffff1e; background:#070707; }
+.catalog-placement legend { padding:0 8px; color:#f3f0ea; font-size:9px; font-weight:800; letter-spacing:.13em; }
+.catalog-placement>p { margin:0 0 14px; color:#777; font-size:9px; line-height:1.6; }
+.catalog-placement-options { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.catalog-placement-options button { min-height:46px; padding:8px 12px; border:1px solid #ffffff20; background:#0b0b0b; color:#777; font-size:8px; font-weight:800; letter-spacing:.1em; cursor:pointer; }
+.catalog-placement-options button.active { border-color:#c1121f; background:#c1121f1d; color:white; box-shadow:inset 0 -2px #c1121f; }
+.catalog-placement label { display:grid; gap:8px; margin-top:15px; padding:0!important; border:0!important; }
+.catalog-placement select,.catalog-placement input { width:100%; min-height:46px; padding:0 12px; border:1px solid #ffffff20; background:#050505; color:white; }
+.catalog-placement small { color:#777; font-size:8px; line-height:1.5; }
 .admin-editor input { width:100%; border:0; outline:0; background:transparent; color:white; font:600 12px var(--font-display); }
 .danger-icon { width:42px; height:42px; display:grid; place-items:center; border:1px solid #c1121f55; background:#c1121f12; color:#ff9aa2; cursor:pointer; }
 .stock-admin { margin-top:26px; padding-top:24px; border-top:1px solid #ffffff18; }
@@ -507,6 +516,7 @@ em { font-style:normal; color:transparent; -webkit-text-stroke:1px var(--steel);
 .product-card:hover,.auth-card:hover,.admin-editor:hover,.cart-checkout:hover,.delivery-form:hover,.payment-layout:hover { border-color:#ffffff24; box-shadow:0 18px 70px #0007; }
 @media (max-width:700px) {
   .product-form-grid,.stock-row { grid-template-columns:1fr; }
+  .catalog-placement-options { grid-template-columns:1fr; }
   .stock-row { align-items:stretch; }
   .size-modal { padding:22px 16px; }
   .size-modal table { font-size:9px; }

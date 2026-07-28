@@ -87,7 +87,7 @@ function money(value: number) {
   return `$${Number(value).toLocaleString("es-MX")} MXN`;
 }
 const emptyStock = () => Object.fromEntries(SIZES.map((size) => [size, { total: 0, reserved: 0, sold: 0 }])) as ProductForm["stock"];
-const emptyProductForm = (): ProductForm => ({ slug: "", name: "", drop: "001", priceMxn: 359, images: "", status: "draft", description: "", color: "Negro", fit: "Premium fit", material: "100% algodón / 190 g/m2", printMethod: "DTF textil premium", featured: false, story: "", code: "", accent: "black", stock: emptyStock() });
+const emptyProductForm = (): ProductForm => ({ slug: "", name: "", drop: "", priceMxn: 359, images: "", status: "draft", description: "", color: "Negro", fit: "Premium fit", material: "100% algodón / 190 g/m2", printMethod: "DTF textil premium", featured: false, story: "", code: "", accent: "black", stock: emptyStock() });
 function available(row: { total: number; reserved: number; sold: number }) { return Math.max(0, Number(row.total || 0) - Number(row.reserved || 0) - Number(row.sold || 0)); }
 
 export function AdminDashboard() {
@@ -104,6 +104,7 @@ export function AdminDashboard() {
   const [selectedId, setSelectedId] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [productForm, setProductForm] = useState<ProductForm>(emptyProductForm);
+  const [dropMode, setDropMode] = useState<"store" | "existing" | "new">("store");
   const [status, setStatus] = useState<OrderStatus>(ORDER_STATUSES[0].value);
   const [productionStatus, setProductionStatus] = useState<ProductionStatus>("received");
   const [refundStatus, setRefundStatus] = useState("none");
@@ -117,7 +118,7 @@ export function AdminDashboard() {
   const selected = useMemo(() => orders.find((order) => order.id === selectedId), [orders, selectedId]);
   const selectedProduct = useMemo(() => products.find((product) => product.id === selectedProductId), [products, selectedProductId]);
   const productPreviewImages = useMemo(() => productForm.images.split(/\n|,/).map((item) => item.trim()).filter(Boolean), [productForm.images]);
-  const drops = useMemo(() => Array.from(new Set(products.map((product) => product.drop_number || "SIN DROP"))).sort(), [products]);
+  const drops = useMemo(() => Array.from(new Set(products.map((product) => product.drop_number).filter((drop): drop is string => Boolean(drop)))).sort(), [products]);
   const filteredOrders = useMemo(() => {
     const query = orderQuery.trim().toLowerCase();
     return orders.filter((order) => {
@@ -138,7 +139,7 @@ export function AdminDashboard() {
     const query = productQuery.trim().toLowerCase();
     return products.filter((product) => {
       const matchesStatus = productStatusFilter === "all" || product.status === productStatusFilter;
-      const matchesDrop = dropFilter === "all" || (product.drop_number || "SIN DROP") === dropFilter;
+      const matchesDrop = dropFilter === "all" || (dropFilter === "store" ? !product.drop_number : product.drop_number === dropFilter);
       const matchesQuery = !query || [product.name, product.slug, product.code, product.color, product.drop_number].join(" ").toLowerCase().includes(query);
       return matchesStatus && matchesDrop && matchesQuery;
     });
@@ -280,18 +281,32 @@ export function AdminDashboard() {
       accent: product.accent || "black",
       stock: productStock(product.id, rows),
     });
+    setDropMode(product.drop_number ? "existing" : "store");
     setMessage("");
   }
 
   function newProduct() {
     setSelectedProductId("");
     setProductForm(emptyProductForm());
+    setDropMode("store");
     setTab("products");
+  }
+
+  function newDropProduct() {
+    setSelectedProductId("");
+    setProductForm(emptyProductForm());
+    setDropMode("new");
+    setTab("products");
+    setMessage("Escribe el nombre del nuevo drop y agrega su primer producto.");
   }
 
   async function saveProduct() {
     const token = await getToken();
     if (!token) return;
+    if (dropMode === "new" && !productForm.drop.trim()) {
+      setMessage("Escribe el nombre o número del nuevo drop.");
+      return;
+    }
     setSaving(true);
     setMessage("");
     const method = productForm.id ? "PATCH" : "POST";
@@ -360,6 +375,7 @@ export function AdminDashboard() {
           <button onClick={() => { void loadOrders(); void loadProducts(); }} disabled={loading}><RefreshCw size={15} /> ACTUALIZAR</button>
           <button onClick={exportOrders}>EXPORTAR CSV</button>
           <button onClick={newProduct}><PackagePlus size={15} /> NUEVO PRODUCTO</button>
+          <button onClick={newDropProduct}>NUEVO DROP</button>
           <button onClick={signOut}>SALIR</button>
         </div>
       </header>
@@ -417,14 +433,14 @@ export function AdminDashboard() {
           <div className="admin-list-tools">
             <label><Search size={14} /><input value={productQuery} onChange={(event) => setProductQuery(event.target.value)} placeholder="Buscar playera, slug, color..." /></label>
             <select value={productStatusFilter} onChange={(event) => setProductStatusFilter(event.target.value as "all" | AdminProduct["status"])}><option value="all">Todos</option><option value="draft">draft</option><option value="active">active</option><option value="sold_out">sold_out</option><option value="hidden">hidden</option></select>
-            <select value={dropFilter} onChange={(event) => setDropFilter(event.target.value)}><option value="all">Todos los drops</option>{drops.map((drop) => <option value={drop} key={drop}>{drop}</option>)}</select>
+            <select value={dropFilter} onChange={(event) => setDropFilter(event.target.value)}><option value="all">Todo el catálogo</option><option value="store">Tienda general</option>{drops.map((drop) => <option value={drop} key={drop}>Drop {drop}</option>)}</select>
           </div>
           {filteredProducts.map((product) => {
             const rows = stockRows.filter((row) => row.product_id === product.id);
             const total = rows.reduce((sum, row) => sum + Number(row.total || 0), 0);
             const availableTotal = rows.reduce((sum, row) => sum + available(row), 0);
             return <button key={product.id} className={selectedProductId === product.id ? "active" : ""} onClick={() => chooseProduct(product)}>
-              <span>{product.status} / {product.drop_number || "DROP"}</span>
+              <span>{product.status} / {product.drop_number ? `DROP ${product.drop_number}` : "TIENDA GENERAL"}</span>
               <strong>{product.name}</strong>
               <small>{money(product.price_mxn)} / {availableTotal} disponibles de {total}</small>
             </button>;
@@ -442,7 +458,7 @@ export function AdminDashboard() {
               <span>{productForm.status}</span>
             </div>
             <div className="product-preview-copy">
-              <span>DROP {productForm.drop || selectedProduct?.drop_number || "001"} / {productForm.code || "SIN CODIGO"}</span>
+              <span>{productForm.drop ? `DROP ${productForm.drop}` : "TIENDA GENERAL"} / {productForm.code || "SIN CÓDIGO"}</span>
               <strong>{productForm.name || "Nueva playera OVRLMT"}</strong>
               <p>{productForm.description || "Sube mockups, define precio, tallas y publica cuando el drop este listo."}</p>
               <div>
@@ -456,7 +472,17 @@ export function AdminDashboard() {
             <label><span>NOMBRE</span><input value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} /></label>
             <label><span>SLUG</span><input value={productForm.slug} onChange={(event) => setProductForm({ ...productForm, slug: event.target.value })} /></label>
             <label><span>PRECIO MXN</span><input type="number" value={productForm.priceMxn} onChange={(event) => setProductForm({ ...productForm, priceMxn: Number(event.target.value) })} /></label>
-            <label><span>DROP</span><input value={productForm.drop} onChange={(event) => setProductForm({ ...productForm, drop: event.target.value })} /></label>
+            <fieldset className="catalog-placement wide">
+              <legend>UBICACIÓN EN LA TIENDA</legend>
+              <p>Todo producto activo aparece en Store. El drop es opcional y sirve para agrupar lanzamientos.</p>
+              <div className="catalog-placement-options">
+                <button type="button" aria-pressed={dropMode === "store"} className={dropMode === "store" ? "active" : ""} onClick={() => { setDropMode("store"); setProductForm({ ...productForm, drop: "" }); }}>TIENDA GENERAL</button>
+                <button type="button" aria-pressed={dropMode === "existing"} className={dropMode === "existing" ? "active" : ""} onClick={() => { setDropMode("existing"); setProductForm({ ...productForm, drop: productForm.drop || drops[0] || "001" }); }}>DROP EXISTENTE</button>
+                <button type="button" aria-pressed={dropMode === "new"} className={dropMode === "new" ? "active" : ""} onClick={() => { setDropMode("new"); setProductForm({ ...productForm, drop: "" }); }}>CREAR NUEVO DROP</button>
+              </div>
+              {dropMode === "existing" && <label><span>SELECCIONA EL DROP</span><select value={productForm.drop} onChange={(event) => setProductForm({ ...productForm, drop: event.target.value })}>{drops.length ? drops.map((drop) => <option value={drop} key={drop}>Drop {drop}</option>) : <option value="001">Drop 001</option>}</select></label>}
+              {dropMode === "new" && <label><span>NOMBRE O NÚMERO DEL NUEVO DROP</span><input autoFocus value={productForm.drop} maxLength={40} onChange={(event) => setProductForm({ ...productForm, drop: event.target.value })} placeholder="Ej. 002 — Sakura Nights" /><small>Al guardar este producto, el nuevo drop quedará disponible para los siguientes.</small></label>}
+            </fieldset>
             <label><span>ESTADO</span><select value={productForm.status} onChange={(event) => setProductForm({ ...productForm, status: event.target.value as ProductForm["status"] })}><option value="draft">draft</option><option value="active">active</option><option value="sold_out">sold_out</option><option value="hidden">hidden</option></select></label>
             <label><span>ACENTO VISUAL</span><select value={productForm.accent} onChange={(event) => setProductForm({ ...productForm, accent: event.target.value as ProductForm["accent"] })}><option value="black">black</option><option value="bone">bone</option><option value="chrome">chrome</option></select></label>
             <label><span>MATERIAL</span><input value={productForm.material} onChange={(event) => setProductForm({ ...productForm, material: event.target.value })} /></label>

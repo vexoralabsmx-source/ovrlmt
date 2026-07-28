@@ -43,7 +43,7 @@ export function ProductCard({ product, index }: { product: Product; index: numbe
       <div className="scanline" />
       <span className="product-view">VER DETALLES ↗</span>
     </Link>
-    <div className="product-info"><div><p>SOBRE PEDIDO / PIEZA {product.piece}</p><h3>{product.name}</h3></div><span>{product.price}</span></div>
+    <div className="product-info"><div><p>SOBRE PEDIDO / {product.drop === "STORE" ? "TIENDA GENERAL" : `DROP ${product.drop}`} / PIEZA {product.piece}</p><h3>{product.name}</h3></div><span>{product.price}</span></div>
     <div className="product-card-meta"><span>{product.material || PRODUCT_MATERIAL}</span><span>{LOCAL_DELIVERY_COPY}</span></div>
     <div className="quick-buy">
       <div className="quick-buy-row"><div className="card-sizes" aria-label="Seleccionar talla">{SIZES.map((item) => {
