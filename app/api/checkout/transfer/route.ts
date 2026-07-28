@@ -147,6 +147,7 @@ export async function POST(request: Request) {
   }).select("id").single();
   if (error || !order) return NextResponse.json({ error: "No pudimos guardar tu pedido." }, { status: 500 });
 
+  await supabase.rpc("release_expired_stock_reservations");
   const { error: reservationError } = await supabase.rpc("reserve_preorder_stock", {
     p_preorder_id: order.id,
     p_items: items,

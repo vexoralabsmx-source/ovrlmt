@@ -161,6 +161,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    await supabase.rpc("release_expired_stock_reservations");
     const { error: reservationError } = await supabase.rpc("reserve_preorder_stock", {
       p_preorder_id: order.id,
       p_items: validatedItems,

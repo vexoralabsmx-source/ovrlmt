@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/release-reservations",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/abandoned-carts",
-      "schedule": "0 * * * *"
+      "schedule": "0 7 * * *"
     }
   ]
 }
