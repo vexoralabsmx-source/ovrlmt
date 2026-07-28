@@ -316,3 +316,44 @@ export async function sendOrderStatusEmail(order: EmailOrder): Promise<EmailResu
     return { ok: false, ...parseEmailError(error) };
   }
 }
+
+export async function sendAbandonedCartEmail({
+  email,
+  customerName,
+  itemSummary,
+  subtotalMxn,
+  checkoutUrl,
+}: {
+  email: string;
+  customerName?: string | null;
+  itemSummary: string;
+  subtotalMxn: number;
+  checkoutUrl: string;
+}): Promise<EmailResult> {
+  try {
+    const result = await getResend().emails.send({
+      from: getFromEmail(),
+      to: [email],
+      subject: "Tu carrito OVRLMT sigue reservado",
+      html: emailLayout({
+        preheader: "Regresa a tu checkout OVRLMT.",
+        badge: "Carrito pendiente",
+        title: "Tu drop sigue esperando.",
+        intro: `${customerName || "Tu selección"} quedó guardada. El inventario es limitado y la disponibilidad puede cambiar.`,
+        orderCode: "CART / OVRLMT",
+        children: `
+          <div style="padding:20px;border:1px solid #242424;background:#0b0b0b;">
+            ${detailRow("Piezas", itemSummary)}
+            ${detailRow("Subtotal", formatMoney(subtotalMxn), { strong: true })}
+          </div>
+          <p style="margin:22px 0;color:#999;font-size:13px;line-height:1.7;">Completa tus datos y elige tarjeta con Clip o transferencia.</p>
+          <a href="${escapeHtml(checkoutUrl)}" style="display:inline-block;padding:16px 20px;background:#c1121f;color:#fff;text-decoration:none;font-size:10px;font-weight:800;letter-spacing:.14em;">VOLVER AL CHECKOUT</a>
+        `,
+      }),
+    });
+    if (result.error) return { ok: false, errorMessage: result.error.message };
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, ...parseEmailError(error) };
+  }
+}

@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Boxes, Eye, ImageIcon, Mail, PackageCheck, PackagePlus, RefreshCw, Save, Search, Trash2 } from "lucide-react";
 import { ADMIN_EMAIL } from "@/src/lib/authConfig";
 import { AdminShippingPanel, type ShippingAdminOrder } from "@/components/AdminShippingPanel";
-import { getOrderStatusLabel, ORDER_STATUSES, type OrderStatus } from "@/src/lib/orderStatus";
+import { AdminReviewsPanel } from "@/components/AdminReviewsPanel";
+import { AdminChangesPanel } from "@/components/AdminChangesPanel";
+import { getOrderStatusLabel, ORDER_STATUSES, PRODUCTION_STATUSES, type OrderStatus, type ProductionStatus } from "@/src/lib/orderStatus";
 import { clearBrowserSession, getBrowserSession } from "@/src/lib/sessionStorage";
 import { SIZES, type ProductSize } from "@/data/store";
 
@@ -23,6 +25,9 @@ type AdminOrder = {
   address_city: string;
   address_state: string;
   notes: string | null;
+  production_status?: ProductionStatus | null;
+  refund_status?: string | null;
+  refund_reference?: string | null;
   payment_provider?: string | null;
   payment_method?: string | null;
   payment_status?: string | null;
@@ -90,7 +95,7 @@ export function AdminDashboard() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [stockRows, setStockRows] = useState<StockRow[]>([]);
-  const [tab, setTab] = useState<"orders" | "products" | "shipping">("orders");
+  const [tab, setTab] = useState<"orders" | "products" | "shipping" | "reviews" | "changes">("orders");
   const [orderQuery, setOrderQuery] = useState("");
   const [productQuery, setProductQuery] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | OrderStatus>("all");
@@ -100,6 +105,9 @@ export function AdminDashboard() {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [productForm, setProductForm] = useState<ProductForm>(emptyProductForm);
   const [status, setStatus] = useState<OrderStatus>(ORDER_STATUSES[0].value);
+  const [productionStatus, setProductionStatus] = useState<ProductionStatus>("received");
+  const [refundStatus, setRefundStatus] = useState("none");
+  const [refundReference, setRefundReference] = useState("");
   const [notes, setNotes] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -137,10 +145,13 @@ export function AdminDashboard() {
   }, [products, productQuery, productStatusFilter, dropFilter]);
   const adminStats = useMemo(() => {
     const liveProducts = products.filter((product) => product.status === "active").length;
-    const revenue = orders.filter((order) => order.status !== "cancelled").reduce((sum, order) => sum + Number(order.total_mxn || 0), 0);
+    const paidStatuses = new Set(["payment_validated", "in_production", "ready_to_ship", "shipped", "delivered"]);
+    const paidOrders = orders.filter((order) => paidStatuses.has(order.status)).length;
+    const cancelledOrders = orders.filter((order) => order.status === "cancelled").length;
+    const revenue = orders.filter((order) => paidStatuses.has(order.status)).reduce((sum, order) => sum + Number(order.total_mxn || 0), 0);
     const pendingPayment = orders.filter((order) => order.status === "pending_payment").length;
     const availableUnits = stockRows.reduce((sum, row) => sum + available(row), 0);
-    return { liveProducts, revenue, pendingPayment, availableUnits };
+    return { liveProducts, revenue, paidOrders, cancelledOrders, pendingPayment, availableUnits };
   }, [orders, products, stockRows]);
   const lowStockProducts = useMemo(() => products.filter((product) => {
     const rows = stockRows.filter((row) => row.product_id === product.id);
@@ -211,6 +222,9 @@ export function AdminDashboard() {
   function chooseOrder(order: AdminOrder) {
     setSelectedId(order.id);
     setStatus(order.status as OrderStatus);
+    setProductionStatus(order.production_status || "received");
+    setRefundStatus(order.refund_status || "none");
+    setRefundReference(order.refund_reference || "");
     setNotes(order.notes || "");
     setMessage("");
   }
@@ -224,7 +238,7 @@ export function AdminDashboard() {
     const response = await fetch("/api/admin/orders", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id: selected.id, status, notes, sendEmail }),
+      body: JSON.stringify({ id: selected.id, status, productionStatus, refundStatus, refundReference, notes, sendEmail }),
     });
     const json = await response.json();
     setSaving(false);
@@ -319,6 +333,22 @@ export function AdminDashboard() {
     router.replace("/login");
   }
 
+  function exportOrders() {
+    const headers = ["pedido", "fecha", "cliente", "email", "producto", "talla", "cantidad", "total_mxn", "estado", "produccion", "pago", "envio"];
+    const rows = orders.map((order) => [
+      order.order_code, order.created_at, order.customer_name, order.customer_email, order.product_name,
+      order.size, order.quantity, order.total_mxn, order.status, order.production_status || "",
+      order.payment_status || "", order.shipping_status || "",
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `ovrlmt-pedidos-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="admin-page">
       <header>
@@ -328,20 +358,21 @@ export function AdminDashboard() {
         </div>
         <div className="account-actions">
           <button onClick={() => { void loadOrders(); void loadProducts(); }} disabled={loading}><RefreshCw size={15} /> ACTUALIZAR</button>
+          <button onClick={exportOrders}>EXPORTAR CSV</button>
           <button onClick={newProduct}><PackagePlus size={15} /> NUEVO PRODUCTO</button>
           <button onClick={signOut}>SALIR</button>
         </div>
       </header>
       {message && <p className="preorder-error">{message}</p>}
       <div className="admin-command-center">
-        <article><span><PackageCheck size={15} /> PEDIDOS</span><strong>{orders.length}</strong><small>{adminStats.pendingPayment} esperando pago</small></article>
+        <article><span><PackageCheck size={15} /> PEDIDOS</span><strong>{orders.length}</strong><small>{adminStats.paidOrders} pagados · {adminStats.pendingPayment} pendientes · {adminStats.cancelledOrders} cancelados</small></article>
         <article><span><Boxes size={15} /> INVENTARIO</span><strong>{adminStats.availableUnits}</strong><small>unidades disponibles</small></article>
         <article><span><Eye size={15} /> DROP LIVE</span><strong>{adminStats.liveProducts}</strong><small>productos activos</small></article>
-        <article><span><Mail size={15} /> VENTAS</span><strong>{money(adminStats.revenue)}</strong><small>sin cancelados</small></article>
+        <article><span><Mail size={15} /> VENTAS PAGADAS</span><strong>{money(adminStats.revenue)}</strong><small>solo pagos confirmados</small></article>
       </div>
-      <div className="admin-tabs"><button className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>PEDIDOS</button><button className={tab === "shipping" ? "active" : ""} onClick={() => setTab("shipping")}>ENVÍOS</button><button className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>PRODUCTOS</button></div>
+      <div className="admin-tabs"><button className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>PEDIDOS</button><button className={tab === "shipping" ? "active" : ""} onClick={() => setTab("shipping")}>ENVÍOS</button><button className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>PRODUCTOS</button><button className={tab === "reviews" ? "active" : ""} onClick={() => setTab("reviews")}>RESEÑAS</button><button className={tab === "changes" ? "active" : ""} onClick={() => setTab("changes")}>CAMBIOS</button></div>
       {lowStockProducts.length > 0 && <div className="low-stock-alert"><AlertTriangle size={15} /><b>STOCK BAJO</b>{lowStockProducts.map((product) => <span key={product.id}>{product.name}</span>)}</div>}
-      {tab === "shipping" ? <AdminShippingPanel orders={orders} getToken={getToken} reloadOrders={loadOrders} /> : tab === "orders" ? <div className="admin-grid">
+      {tab === "shipping" ? <AdminShippingPanel orders={orders} getToken={getToken} reloadOrders={loadOrders} /> : tab === "reviews" ? <AdminReviewsPanel products={products} getToken={getToken} /> : tab === "changes" ? <AdminChangesPanel getToken={getToken} /> : tab === "orders" ? <div className="admin-grid">
         <div className="admin-orders">
           <div className="admin-list-tools">
             <label><Search size={14} /><input value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} placeholder="Buscar pedido, cliente, correo..." /></label>
@@ -373,6 +404,9 @@ export function AdminDashboard() {
               {selected.payment_receipt_no && <span>RECIBO {selected.payment_receipt_no}</span>}
             </div>
             <label><span>ESTADO</span><select value={status} onChange={(event) => setStatus(event.target.value as OrderStatus)}>{ORDER_STATUSES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+            <label><span>ETAPA DE PRODUCCIÓN</span><select value={productionStatus} onChange={(event) => setProductionStatus(event.target.value as ProductionStatus)}>{PRODUCTION_STATUSES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+            <label><span>REEMBOLSO</span><select value={refundStatus} onChange={(event) => setRefundStatus(event.target.value)}><option value="none">Sin reembolso</option><option value="requested">Solicitado</option><option value="processing">Procesando</option><option value="refunded">Reembolsado</option><option value="rejected">Rechazado</option></select></label>
+            <label><span>REFERENCIA DE REEMBOLSO</span><input value={refundReference} onChange={(event) => setRefundReference(event.target.value)} placeholder="ID o nota de Clip/banco" /></label>
             <label><span>NOTAS PARA CLIENTE</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={7} placeholder="Ej. Pago validado. Tu pedido entra a produccion esta semana." /></label>
             <label className="send-toggle"><input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} /> Enviar correo de actualizacion con el estilo OVRLMT</label>
             <button className="submit-btn" onClick={saveOrder} disabled={saving}><span>{saving ? "GUARDANDO" : "GUARDAR CAMBIOS"}</span>{sendEmail ? <Mail size={16} /> : <Save size={16} />}</button>

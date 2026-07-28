@@ -10,6 +10,17 @@ export const ORDER_STATUSES = [
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number]["value"];
 
+export const PRODUCTION_STATUSES = [
+  { value: "received", label: "Recibido" },
+  { value: "printing", label: "Impresión" },
+  { value: "quality", label: "Control de calidad" },
+  { value: "packing", label: "Empaquetado" },
+  { value: "ready", label: "Listo para enviar" },
+  { value: "shipped", label: "Enviado" },
+] as const;
+
+export type ProductionStatus = (typeof PRODUCTION_STATUSES)[number]["value"];
+
 export function getOrderStatusLabel(status: string) {
   return ORDER_STATUSES.find((item) => item.value === status)?.label || status;
 }

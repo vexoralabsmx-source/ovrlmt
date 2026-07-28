@@ -4,6 +4,7 @@ import { Reveal } from "@/components/Reveal";
 import Link from "next/link";
 import { FaqSection, HowToBuy, SocialProofSection, TrustSection } from "@/components/CommerceSections";
 import { getCatalogProducts, getStockSummary } from "@/src/lib/catalog";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
 
 export const metadata = { title: "Drop 001" };
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export default async function Drop() {
   const totalAvailable = products.reduce((sum, product) => sum + getStockSummary(product).available, 0);
 
   return <PageFrame>
+  <LaunchCountdown launchAt={process.env.NEXT_PUBLIC_DROP_LAUNCH_AT} />
   <section className="page-hero drop-hero"><div className="page-index">01—03</div><p className="eyebrow">MADE TO ORDER / PUEBLA MX</p><h1>DROP 001<span>— AFTER DARK</span></h1><div className="page-intro"><p>18 cupos de producción.<br />3 diseños. 6 por diseño.</p><span>SOBRE PEDIDO — AD/001</span></div></section>
   <section className="drop-list section-pad"><div className="section-head"><p className="section-label">DROP LIMITADO / {totalAvailable} CUPOS DISPONIBLES</p><p>PRODUCCIÓN SOBRE PEDIDO<br />REFERENCIAS VISUALES</p></div><div className="product-grid">{products.map((p,i) => <ProductCard key={p.slug} product={p} index={i} />)}</div></section>
   <HowToBuy />

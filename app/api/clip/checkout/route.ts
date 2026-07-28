@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { SIZES, FREE_SHIPPING_MINIMUM, SHIPPING_COST, isFreePersonalDeliveryPostalCode, type ProductSize } from "@/data/store";
 import { createClipCheckout, ClipApiError } from "@/src/lib/clip";
 import { getCatalogProducts } from "@/src/lib/catalog";
+import { validateCoupon } from "@/src/lib/coupons";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ type CheckoutBody = {
     address?: unknown;
   };
   items?: Array<{ slug?: unknown; size?: unknown; quantity?: unknown }>;
+  couponCode?: unknown;
 };
 
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -53,11 +55,11 @@ export async function POST(request: Request) {
   if (
     !isEmail(customer.email) ||
     !customer.fullName ||
-    !customer.whatsapp ||
+    customer.whatsapp.replace(/\D/g, "").length < 10 ||
     !customer.city ||
     !customer.state ||
     !/^\d{5}$/.test(customer.postalCode) ||
-    !customer.address
+    customer.address.length < 8
   ) {
     return NextResponse.json({ error: "Revisa tus datos de contacto y entrega." }, { status: 400 });
   }
@@ -103,9 +105,19 @@ export async function POST(request: Request) {
   }
 
   const subtotalMxn = validatedItems.reduce((sum, item) => sum + item.lineTotalMxn, 0);
+  const couponInput = cleanText(body.couponCode, 60).toUpperCase();
+  let coupon: { code: string; discountMxn: number } | null = null;
+  if (couponInput) {
+    try {
+      coupon = await validateCoupon(couponInput, subtotalMxn, customer.email);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Cupón inválido." }, { status: 400 });
+    }
+  }
+  const afterDiscount = Math.max(0, subtotalMxn - (coupon?.discountMxn || 0));
   const localDelivery = isFreePersonalDeliveryPostalCode(customer.postalCode);
-  const shippingMxn = localDelivery || subtotalMxn >= FREE_SHIPPING_MINIMUM ? 0 : SHIPPING_COST;
-  const totalMxn = subtotalMxn + shippingMxn;
+  const shippingMxn = localDelivery || afterDiscount >= FREE_SHIPPING_MINIMUM ? 0 : SHIPPING_COST;
+  const totalMxn = afterDiscount + shippingMxn;
   const quantity = validatedItems.reduce((sum, item) => sum + item.quantity, 0);
   const orderCode = createOrderCode();
   const productName = validatedItems.map((item) => `${item.quantity}x ${item.name}`).join(", ");
@@ -125,7 +137,8 @@ export async function POST(request: Request) {
       quantity,
       unit_price_mxn: validatedItems.length === 1 ? validatedItems[0].unitPriceMxn : Math.round(subtotalMxn / quantity),
       subtotal_mxn: subtotalMxn,
-      discount_mxn: 0,
+      discount_code: coupon?.code || null,
+      discount_mxn: coupon?.discountMxn || 0,
       shipping_mxn: shippingMxn,
       total_mxn: totalMxn,
       shipping_type: localDelivery ? "personal" : "national",
@@ -148,6 +161,19 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { error: reservationError } = await supabase.rpc("reserve_preorder_stock", {
+      p_preorder_id: order.id,
+      p_items: validatedItems,
+      p_minutes: 30,
+    });
+    if (reservationError) {
+      await supabase.from("preorders").delete().eq("id", order.id);
+      return NextResponse.json(
+        { error: "Una talla se agotó mientras preparábamos tu pago. Actualiza el carrito." },
+        { status: 409 },
+      );
+    }
+
     const configuredWebhook = process.env.CLIP_WEBHOOK_URL?.trim();
     const webhookUrl = configuredWebhook || (baseUrl.startsWith("https://") ? `${baseUrl}/api/clip/webhook` : undefined);
     const checkout = await createClipCheckout({
@@ -207,6 +233,7 @@ export async function POST(request: Request) {
       paymentUrl: checkout.payment_request_url,
     });
   } catch (error) {
+    await supabase.rpc("release_preorder_stock", { p_preorder_id: order.id });
     await supabase
       .from("preorders")
       .update({ payment_status: "checkout_error", updated_at: new Date().toISOString() })

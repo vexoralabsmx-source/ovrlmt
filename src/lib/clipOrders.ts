@@ -1,6 +1,7 @@
 import "server-only";
 import { getClipCheckout, isClipCheckoutPaid } from "@/src/lib/clip";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
+import { incrementCouponUse } from "@/src/lib/coupons";
 import { sendAdminPreorderNotification, sendOrderStatusEmail, type EmailOrder } from "@/src/lib/resend";
 
 type ClipOrderRow = {
@@ -21,6 +22,7 @@ type ClipOrderRow = {
   address_city: string | null;
   address_state: string | null;
   notes: string | null;
+  discount_code: string | null;
 };
 
 export function isValidClipPaymentId(value: string) {
@@ -53,7 +55,7 @@ export async function syncClipOrder(paymentRequestId: string) {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("preorders")
-    .select("id,order_code,customer_name,customer_email,customer_whatsapp,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,status,payment_status,address_city,address_state,notes")
+    .select("id,order_code,customer_name,customer_email,customer_whatsapp,product_name,size,quantity,subtotal_mxn,discount_code,discount_mxn,shipping_mxn,total_mxn,status,payment_status,address_city,address_state,notes")
     .eq("payment_request_id", paymentRequestId)
     .single();
 
@@ -85,11 +87,16 @@ export async function syncClipOrder(paymentRequestId: string) {
   if (updateError) throw new Error("No pudimos actualizar el estado de la orden.");
 
   if (paid && transitionedRows?.length) {
+    await supabase.rpc("confirm_preorder_stock", { p_preorder_id: order.id });
+    await incrementCouponUse(order.discount_code);
+    await supabase.from("checkout_drafts").update({ recovered_at: new Date().toISOString() }).eq("customer_email", order.customer_email);
     const emailOrder = toEmailOrder(order);
     await Promise.allSettled([
       sendOrderStatusEmail(emailOrder),
       sendAdminPreorderNotification(emailOrder),
     ]);
+  } else if (checkout.status === "CHECKOUT_CANCELLED" || checkout.status === "CHECKOUT_EXPIRED") {
+    await supabase.rpc("release_preorder_stock", { p_preorder_id: order.id });
   }
 
   return {

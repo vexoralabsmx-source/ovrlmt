@@ -19,6 +19,7 @@ type CartContextValue = {
   updateQuantity: (slug: string, size: ProductSize, quantity: number) => void;
   removeItem: (slug: string, size: ProductSize) => void;
   clearCart: () => void;
+  replaceItems: (items: CartItem[]) => void;
   openCart: () => void;
   closeCart: () => void;
 };
@@ -62,6 +63,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     updateQuantity(slug, size, quantity) { setItems((current) => current.map((item) => item.slug === slug && item.size === size ? { ...item, quantity: Math.max(1, quantity) } : item)); },
     removeItem(slug, size) { setItems((current) => current.filter((item) => !(item.slug === slug && item.size === size))); },
     clearCart() { setItems([]); },
+    replaceItems(nextItems) { setItems(nextItems); setIsOpen(true); },
     openCart() { setIsOpen(true); }, closeCart() { setIsOpen(false); },
   }), [items, itemCount, subtotal, shipping, total, isOpen]);
 

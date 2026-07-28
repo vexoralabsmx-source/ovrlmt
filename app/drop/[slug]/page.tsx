@@ -8,6 +8,7 @@ import { products } from "@/data/products";
 import { LOCAL_DELIVERY_COPY, PRODUCT_MATERIAL } from "@/data/store";
 import { FaqSection, TrustSection } from "@/components/CommerceSections";
 import { getCatalogProducts, getFomoLabel, getStockSummary } from "@/src/lib/catalog";
+import { ProductReviews } from "@/components/ProductReviews";
 
 type Props = { params: Promise<{ slug: string }> };
 export const dynamic = "force-dynamic";
@@ -53,6 +54,7 @@ export default async function ProductPage({ params }: Props) {
       </div>
       <section className="piece-story"><p className="section-label">DESIGN FILE / {product.piece}</p><h2>POR QUÉ ESTA<br />PIEZA EXISTE</h2><p>{product.story}</p></section>
     </main>
+    <ProductReviews productSlug={product.slug} />
     <TrustSection />
     <FaqSection />
   </PageFrame>;

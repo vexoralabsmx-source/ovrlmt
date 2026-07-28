@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await getSupabaseAdmin()
     .from("preorders")
-    .select("id,order_code,product_name,size,quantity,total_mxn,status,notes,created_at,updated_at")
+    .select("id,order_code,product_slug,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,status,production_status,payment_status,payment_receipt_no,items,tracking_id,tracking_link,notes,created_at,updated_at")
     .eq("customer_email", email)
     .order("created_at", { ascending: false });
 

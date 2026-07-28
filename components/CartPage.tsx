@@ -61,6 +61,7 @@ type PendingClipOrder = Omit<SuccessOrder, "paymentMethod" | "receiptNo" | "what
 };
 
 const CLIP_PENDING_KEY = "ovrlmt-clip-pending-v1";
+const CHECKOUT_DRAFT_KEY = "ovrlmt-checkout-draft-v1";
 const emptyData: CheckoutData = {
   email: "",
   fullName: "",
@@ -116,11 +117,17 @@ export function CartPage() {
   const [paymentError, setPaymentError] = useState("");
   const [clipReturnState, setClipReturnState] = useState<"idle" | "checking" | "pending" | "error">("idle");
   const [successOrder, setSuccessOrder] = useState<SuccessOrder | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [discountMxn, setDiscountMxn] = useState(0);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [zipLoading, setZipLoading] = useState(false);
 
   const cleanPostalCode = data.postalCode.replace(/\D/g, "");
   const localDelivery = cleanPostalCode.length === 5 && isLocalPostalCode(cleanPostalCode);
-  const shipping = getShipping(cart.subtotal, cleanPostalCode);
-  const total = cart.subtotal + shipping;
+  const discountedSubtotal = Math.max(0, cart.subtotal - discountMxn);
+  const shipping = getShipping(discountedSubtotal, cleanPostalCode);
+  const total = discountedSubtotal + shipping;
   const shippingLabel = localDelivery
     ? "Entrega personal gratis"
     : shipping === 0
@@ -135,6 +142,57 @@ export function CartPage() {
     `Monto exacto: ${money(total)}`,
     PAYMENT_DETAILS.instructions,
   ].join("\n"), [total]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CHECKOUT_DRAFT_KEY);
+      if (saved) {
+        const draft = JSON.parse(saved) as { data?: CheckoutData; step?: Step; couponCode?: string };
+        if (draft.data) setData(draft.data);
+        if (draft.step) setStep(draft.step);
+        if (draft.couponCode) setCouponCode(draft.couponCode);
+      }
+    } catch {
+      localStorage.removeItem(CHECKOUT_DRAFT_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      localStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify({ data, step, couponCode }));
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [data, step, couponCode]);
+
+  useEffect(() => {
+    if (!isValidEmail(data.email) || !cart.items.length) return;
+    const timeout = window.setTimeout(() => {
+      void fetch("/api/checkout/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email, fullName: data.fullName, items: cart.items, subtotalMxn: cart.subtotal }),
+      });
+    }, 1200);
+    return () => window.clearTimeout(timeout);
+  }, [cart.items, cart.subtotal, data.email, data.fullName]);
+
+  useEffect(() => {
+    if (!/^\d{5}$/.test(cleanPostalCode)) return;
+    let cancelled = false;
+    setZipLoading(true);
+    fetch(`/api/postal-code/${cleanPostalCode}`)
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((result: unknown) => {
+        if (cancelled || typeof result !== "object" || !result) return;
+        const parsed = result as Record<string, unknown>;
+        const state = parsed.state;
+        const city = parsed.city;
+        if (state || city) setData((current) => ({ ...current, state: String(state || current.state), city: String(city || current.city) }));
+      })
+      .catch(() => undefined)
+      .finally(() => { if (!cancelled) setZipLoading(false); });
+    return () => { cancelled = true; };
+  }, [cleanPostalCode]);
 
   useEffect(() => {
     const returnType = searchParams.get("clip");
@@ -188,6 +246,7 @@ export function CartPage() {
           receiptNo: result.receiptNo,
         });
         sessionStorage.removeItem(CLIP_PENDING_KEY);
+        localStorage.removeItem(CHECKOUT_DRAFT_KEY);
         cart.clearCart();
         setClipReturnState("idle");
         router.replace("/cart", { scroll: false });
@@ -213,11 +272,11 @@ export function CartPage() {
   function validateStepTwo() {
     const nextErrors: Partial<Record<keyof CheckoutData, string>> = {};
     if (!data.fullName.trim()) nextErrors.fullName = "Nombre obligatorio.";
-    if (!data.whatsapp.trim()) nextErrors.whatsapp = "WhatsApp obligatorio.";
+    if (data.whatsapp.replace(/\D/g, "").length < 10) nextErrors.whatsapp = "Ingresa un teléfono de al menos 10 dígitos.";
     if (!data.city.trim()) nextErrors.city = "Ciudad obligatoria.";
     if (!data.state.trim()) nextErrors.state = "Estado obligatorio.";
     if (!/^\d{5}$/.test(cleanPostalCode)) nextErrors.postalCode = "CP de 5 dígitos.";
-    if (!data.address.trim()) nextErrors.address = "Dirección completa obligatoria.";
+    if (data.address.trim().length < 8) nextErrors.address = "Incluye calle, número y colonia.";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
@@ -242,6 +301,30 @@ export function CartPage() {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
+  async function applyCoupon() {
+    if (!isValidEmail(data.email)) {
+      setCouponMessage("Primero agrega un correo válido.");
+      return;
+    }
+    setCouponLoading(true);
+    setCouponMessage("");
+    const response = await fetch("/api/coupons/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: couponCode, subtotalMxn: cart.subtotal, email: data.email }),
+    });
+    const result = await response.json() as { discountMxn?: number; code?: string; label?: string; error?: string };
+    setCouponLoading(false);
+    if (!response.ok) {
+      setDiscountMxn(0);
+      setCouponMessage(result.error || "Cupón inválido.");
+      return;
+    }
+    setCouponCode(result.code || couponCode.toUpperCase());
+    setDiscountMxn(Number(result.discountMxn || 0));
+    setCouponMessage(`${result.label}. Cupón aplicado.`);
+  }
+
   async function startClipCheckout() {
     setIsSubmitting(true);
     setPaymentError("");
@@ -252,6 +335,7 @@ export function CartPage() {
         body: JSON.stringify({
           customer: data,
           items: cart.items.map(({ slug, size, quantity }) => ({ slug, size, quantity })),
+          couponCode: discountMxn > 0 ? couponCode : "",
         }),
       });
       const result = await response.json() as {
@@ -293,19 +377,39 @@ export function CartPage() {
       return;
     }
 
-    const orderCode = `OV-${Math.floor(1000 + Math.random() * 9000)}`;
-    const message = `Hola, quiero confirmar mi preorden ${orderCode}. Cliente: ${data.fullName}. Prendas: ${itemSummary}. Total: ${money(total)}. Adjunto mi comprobante.`;
-    setSuccessOrder({
-      code: orderCode,
-      total,
-      shipping,
-      items: [...cart.items],
-      customer: data,
-      paymentMethod: "transfer",
-      whatsappUrl: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
-    });
-    cart.clearCart();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setIsSubmitting(true);
+    setPaymentError("");
+    try {
+      const response = await fetch("/api/checkout/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer: data,
+          items: cart.items.map(({ slug, size, quantity }) => ({ slug, size, quantity })),
+          couponCode: discountMxn > 0 ? couponCode : "",
+        }),
+      });
+      const result = await response.json() as { orderCode?: string; totalMxn?: number; shippingMxn?: number; error?: string };
+      if (!response.ok || !result.orderCode) throw new Error(result.error || "No pudimos registrar tu transferencia.");
+      const finalTotal = Number(result.totalMxn ?? total);
+      const message = `Hola, quiero confirmar mi preorden ${result.orderCode}. Cliente: ${data.fullName}. Prendas: ${itemSummary}. Total: ${money(finalTotal)}. Adjunto mi comprobante.`;
+      setSuccessOrder({
+        code: result.orderCode,
+        total: finalTotal,
+        shipping: Number(result.shippingMxn ?? shipping),
+        items: [...cart.items],
+        customer: data,
+        paymentMethod: "transfer",
+        whatsappUrl: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
+      });
+      localStorage.removeItem(CHECKOUT_DRAFT_KEY);
+      cart.clearCart();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : "No pudimos registrar la orden.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (successOrder) {
@@ -426,7 +530,7 @@ export function CartPage() {
                   <div className="checkout-fields-grid">
                     <label className="wide"><span>NOMBRE COMPLETO *</span><input required aria-required="true" value={data.fullName} onChange={(event) => updateField("fullName", event.target.value)} autoComplete="name" />{errors.fullName && <small>{errors.fullName}</small>}</label>
                     <label><span>TELÉFONO WHATSAPP *</span><input required aria-required="true" value={data.whatsapp} onChange={(event) => updateField("whatsapp", event.target.value)} type="tel" autoComplete="tel" />{errors.whatsapp && <small>{errors.whatsapp}</small>}</label>
-                    <label><span>CÓDIGO POSTAL *</span><input required aria-required="true" value={data.postalCode} onChange={(event) => updateField("postalCode", event.target.value)} inputMode="numeric" pattern="\d{5}" minLength={5} maxLength={5} />{errors.postalCode && <small>{errors.postalCode}</small>}</label>
+                    <label><span>CÓDIGO POSTAL * {zipLoading && "· BUSCANDO..."}</span><input required aria-required="true" value={data.postalCode} onChange={(event) => updateField("postalCode", event.target.value)} inputMode="numeric" pattern="\d{5}" minLength={5} maxLength={5} />{errors.postalCode && <small>{errors.postalCode}</small>}</label>
                     <label><span>CIUDAD *</span><input required aria-required="true" value={data.city} onChange={(event) => updateField("city", event.target.value)} autoComplete="address-level2" />{errors.city && <small>{errors.city}</small>}</label>
                     <label><span>ESTADO *</span><input required aria-required="true" value={data.state} onChange={(event) => updateField("state", event.target.value)} autoComplete="address-level1" />{errors.state && <small>{errors.state}</small>}</label>
                     <label className="wide"><span>DIRECCIÓN COMPLETA *</span><input required aria-required="true" value={data.address} onChange={(event) => updateField("address", event.target.value)} autoComplete="street-address" placeholder="Calle, número, colonia y referencias" />{errors.address && <small>{errors.address}</small>}</label>
@@ -444,6 +548,7 @@ export function CartPage() {
                     <button className="checkout-back secondary-control" type="button" onClick={() => goToStep(1)}>VOLVER</button>
                     <button className="checkout-next" type="button" onClick={continueToPayment}>CONTINUAR AL PAGO <span>↗</span></button>
                   </div>
+                  <p className="checkout-estimate"><Truck size={15} /> Producción estimada: 5–8 días hábiles. Envío nacional: 2–5 días hábiles adicionales.</p>
                 </section>
               </StepPanel>
             )}
@@ -461,6 +566,7 @@ export function CartPage() {
                       <Landmark size={21} /><span><b>TRANSFERENCIA BBVA</b><small>Confirmación manual</small></span>
                     </button>
                   </div>
+                  {paymentError && <p className="payment-error" role="alert">{paymentError}</p>}
 
                   {paymentMethod === "clip" ? (
                     <div className="payment-card premium-bank-card clip-payment-card">
@@ -473,7 +579,6 @@ export function CartPage() {
                         <div><dt>MONEDA</dt><dd>MXN</dd></div>
                         <div><dt>MONTO EXACTO</dt><dd>{money(total)}</dd></div>
                       </dl>
-                      {paymentError && <p className="payment-error" role="alert">{paymentError}</p>}
                       <button className="whatsapp-submit pulse-submit" type="submit" disabled={isSubmitting}>
                         {isSubmitting ? <><LoaderCircle className="clip-spinner" size={18} /> CREANDO PAGO SEGURO...</> : <>PAGAR CON TARJETA EN CLIP <span>↗</span></>}
                       </button>
@@ -492,7 +597,7 @@ export function CartPage() {
                         <div><dt>MONTO EXACTO</dt><dd>{money(total)}</dd></div>
                       </dl>
                       <button className="copy-payment" type="button" onClick={copyPayment}>{copied ? <ClipboardCheck size={16} /> : <Copy size={16} />}{copied ? "COPIADO ✓" : "COPIAR DATOS DE TRANSFERENCIA"}</button>
-                      <button className="whatsapp-submit" type="submit">APARTAR Y ENVIAR COMPROBANTE <span>↗</span></button>
+                      <button className="whatsapp-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? "REGISTRANDO ORDEN..." : <>APARTAR Y ENVIAR COMPROBANTE <span>↗</span></>}</button>
                     </div>
                   )}
                 </section>
@@ -516,13 +621,19 @@ export function CartPage() {
                 </article>
               ))}
             </div>
+            <div className="checkout-coupon">
+              <label htmlFor="coupon-code">CUPÓN O CÓDIGO DE PAQUETE</label>
+              <div><input id="coupon-code" value={couponCode} onChange={(event) => { setCouponCode(event.target.value.toUpperCase()); setDiscountMxn(0); setCouponMessage(""); }} placeholder="OVRLMT..." /><button type="button" onClick={applyCoupon} disabled={couponLoading || !couponCode}>{couponLoading ? "..." : "APLICAR"}</button></div>
+              {couponMessage && <small className={discountMxn > 0 ? "success" : "error"}>{couponMessage}</small>}
+            </div>
             <dl>
               <div><dt>Subtotal</dt><dd>{money(cart.subtotal)}</dd></div>
+              {discountMxn > 0 && <div><dt>Descuento</dt><dd>-{money(discountMxn)}</dd></div>}
               <div><dt>{shippingLabel}</dt><dd>{shipping === 0 ? "GRATIS" : money(shipping)}</dd></div>
               <div><dt>Total a pagar</dt><dd>{money(total)}</dd></div>
             </dl>
             <div className="sidebar-trust-note"><ShieldCheck size={17} /><span>Pago protegido por Clip. Los datos de tu tarjeta no pasan por OVRLMT.</span></div>
-            {cart.subtotal < FREE_SHIPPING_MINIMUM && !localDelivery && <p className="shipping-rule">Envío gratis desde {money(FREE_SHIPPING_MINIMUM)} o entrega personal gratis en zonas seleccionadas de Puebla.</p>}
+            {discountedSubtotal < FREE_SHIPPING_MINIMUM && !localDelivery && <div className="shipping-progress"><div><i style={{ width: `${Math.min(100, discountedSubtotal / FREE_SHIPPING_MINIMUM * 100)}%` }} /></div><p>Te faltan {money(FREE_SHIPPING_MINIMUM - discountedSubtotal)} para envío gratis.</p></div>}
             <div className="sidebar-mini-badges">
               <span><PackageCheck size={13} /> Sobre pedido</span>
               <span><Truck size={13} /> Envío</span>
