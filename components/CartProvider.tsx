@@ -6,7 +6,7 @@ import type { ProductSize } from "@/data/store";
 import { FREE_SHIPPING_MINIMUM, PRODUCT_PRICE, SHIPPING_COST } from "@/data/store";
 import { CartDrawer } from "@/components/CartDrawer";
 
-export type CartItem = Pick<Product, "slug" | "name" | "image"> & { size: ProductSize; quantity: number };
+export type CartItem = Pick<Product, "slug" | "name" | "image"> & { size: ProductSize; quantity: number; priceMxn: number };
 
 type CartContextValue = {
   items: CartItem[];
@@ -15,14 +15,12 @@ type CartContextValue = {
   shipping: number;
   total: number;
   isOpen: boolean;
-  checkoutOpen: boolean;
   addItem: (product: Product, size: ProductSize, quantity: number) => void;
   updateQuantity: (slug: string, size: ProductSize, quantity: number) => void;
   removeItem: (slug: string, size: ProductSize) => void;
+  clearCart: () => void;
   openCart: () => void;
   closeCart: () => void;
-  openCheckout: () => void;
-  closeCheckout: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -32,7 +30,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -43,31 +40,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }, [items, hydrated]);
   useEffect(() => {
-    document.body.style.overflow = isOpen || checkoutOpen ? "hidden" : "";
+    document.body.style.overflow = isOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [isOpen, checkoutOpen]);
+  }, [isOpen]);
 
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * PRODUCT_PRICE, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.quantity * (item.priceMxn || PRODUCT_PRICE), 0);
   const shipping = subtotal > 0 && subtotal < FREE_SHIPPING_MINIMUM ? SHIPPING_COST : 0;
   const total = subtotal + shipping;
   const itemCount = hydrated ? items.reduce((sum, item) => sum + item.quantity, 0) : 0;
 
   const value = useMemo<CartContextValue>(() => ({
-    items, itemCount, subtotal, shipping, total, isOpen, checkoutOpen,
+    items, itemCount, subtotal, shipping, total, isOpen,
     addItem(product, size, quantity) {
       setItems((current) => {
         const found = current.find((item) => item.slug === product.slug && item.size === size);
         if (found) return current.map((item) => item === found ? { ...item, quantity: item.quantity + quantity } : item);
-        return [...current, { slug: product.slug, name: product.name, image: product.image, size, quantity }];
+        return [...current, { slug: product.slug, name: product.name, image: product.image, priceMxn: product.priceMxn || PRODUCT_PRICE, size, quantity }];
       });
       setIsOpen(true);
     },
     updateQuantity(slug, size, quantity) { setItems((current) => current.map((item) => item.slug === slug && item.size === size ? { ...item, quantity: Math.max(1, quantity) } : item)); },
     removeItem(slug, size) { setItems((current) => current.filter((item) => !(item.slug === slug && item.size === size))); },
+    clearCart() { setItems([]); },
     openCart() { setIsOpen(true); }, closeCart() { setIsOpen(false); },
-    openCheckout() { if (items.length) { setIsOpen(false); setCheckoutOpen(true); } },
-    closeCheckout() { setCheckoutOpen(false); },
-  }), [items, itemCount, subtotal, shipping, total, isOpen, checkoutOpen]);
+  }), [items, itemCount, subtotal, shipping, total, isOpen]);
 
   return <CartContext.Provider value={value}>{children}<CartDrawer /></CartContext.Provider>;
 }

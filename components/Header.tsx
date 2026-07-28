@@ -8,7 +8,7 @@ import { Menu, ShoppingBag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
 
-const links = [["HOME", "/"], ["DROP", "/drop"], ["STORY", "/story"], ["SIZE GUIDE", "/size-guide"], ["CONTACT", "/contact"]];
+const links = [["HOME", "/"], ["DROP", "/drop"], ["STORY", "/story"], ["SIZE GUIDE", "/size-guide"], ["PREORDER", "/contact"], ["CUENTA", "/login"]];
 
 export function Header() {
   const cart = useCart();
@@ -20,7 +20,7 @@ export function Header() {
     <header className="nav-shell">
       <Link href="/" className="brand-logo" aria-label="OVRLMT Home"><Image src="/brand/ovrlmt-logo.png" alt="OVRLMT" width={132} height={44} priority /></Link>
       <nav className="desktop-nav">{links.map(([label, href]) => <Link className={path === href ? "active" : ""} href={href} key={href}>{label}</Link>)}</nav>
-      <Link className="nav-cta" href="/drop">PREORDER <span>↗</span></Link>
+      <Link className="nav-cta" href="/contact">PREORDER <span>↗</span></Link>
       <button className="cart-toggle" onClick={cart.openCart} aria-label={`Abrir carrito, ${cart.itemCount} productos`}><ShoppingBag size={17} /><span>{cart.itemCount}</span></button>
       <button className="menu-toggle" onClick={() => setOpen(true)} aria-label="Open menu"><Menu size={22} /></button>
     </header>
