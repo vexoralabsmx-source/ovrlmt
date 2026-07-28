@@ -5,8 +5,8 @@ export const WHATSAPP_NUMBER = "522212683069";
 export const DISCOUNT_CODE = "OVRLMT-10FFDP1";
 export const DISCOUNT_RATE = 0.1;
 export const PRODUCT_MATERIAL = "100% algodón / 190 g/m2";
-export const LOCAL_DELIVERY_AREA = "Puebla Centro y alrededores";
-export const LOCAL_DELIVERY_COPY = "Entrega personal gratis en Puebla Centro y alrededores. Ingresa tu código postal en checkout para confirmar si aplica.";
+export const LOCAL_DELIVERY_AREA = "Plaza Crystal, Walmart San Manuel y Plaza Dorada";
+export const LOCAL_DELIVERY_COPY = "Entrega personal gratis en Plaza Crystal, Walmart San Manuel o Plaza Dorada. Confirmamos el punto y horario por WhatsApp.";
 export const PAYMENT_DETAILS = {
   accountHolder: "Miguel Ángel Dorantes Hernández",
   bank: "BBVA",

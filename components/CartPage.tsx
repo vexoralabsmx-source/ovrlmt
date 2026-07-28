@@ -26,6 +26,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } 
 import { useCart, type CartItem } from "@/components/CartProvider";
 import {
   FREE_SHIPPING_MINIMUM,
+  LOCAL_DELIVERY_COPY,
   PAYMENT_DETAILS,
   PRODUCT_PRICE,
   SHIPPING_COST,
@@ -540,7 +541,7 @@ export function CartPage() {
                       <MapPin size={20} />
                       <div>
                         <b>{localDelivery ? "ENTREGA PERSONAL GRATIS DISPONIBLE" : shipping === 0 ? "ENVÍO NACIONAL GRATIS" : "ENVÍO NACIONAL ESTÁNDAR ($150 MXN)"}</b>
-                        <p>{localDelivery ? "Acordaremos el punto de entrega en Puebla por WhatsApp." : shipping === 0 ? "Tu compra supera el mínimo de envío gratis." : "Se suma la tarifa nacional estándar al total."}</p>
+                        <p>{localDelivery ? LOCAL_DELIVERY_COPY : shipping === 0 ? "Tu compra supera el mínimo de envío gratis." : "Se suma la tarifa nacional estándar al total."}</p>
                       </div>
                     </div>
                   )}
