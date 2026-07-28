@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com", pathname: "/dakjhsfne/image/upload/**" },
+      { protocol: "https", hostname: "res.cloudinary.com", pathname: "/khxvbeau/image/upload/**" },
       { protocol: "https", hostname: "**.supabase.co", pathname: "/storage/v1/object/public/review-images/**" },
     ],
   },
