@@ -7,6 +7,7 @@ import { ADMIN_EMAIL } from "@/src/lib/authConfig";
 import { AdminShippingPanel, type ShippingAdminOrder } from "@/components/AdminShippingPanel";
 import { AdminReviewsPanel } from "@/components/AdminReviewsPanel";
 import { AdminChangesPanel } from "@/components/AdminChangesPanel";
+import { AdminCouponsPanel } from "@/components/AdminCouponsPanel";
 import { getOrderStatusLabel, ORDER_STATUSES, PRODUCTION_STATUSES, type OrderStatus, type ProductionStatus } from "@/src/lib/orderStatus";
 import { clearBrowserSession, getBrowserSession } from "@/src/lib/sessionStorage";
 import { SIZES, type ProductSize } from "@/data/store";
@@ -17,11 +18,20 @@ type AdminOrder = {
   customer_name: string;
   customer_email: string;
   customer_whatsapp: string;
+  customer_company?: string | null;
   product_name: string;
   size: string;
   quantity: number;
   total_mxn: number;
   status: string;
+  address_country?: string | null;
+  address_street?: string | null;
+  address_exterior_number?: string | null;
+  address_interior_number?: string | null;
+  address_neighborhood?: string | null;
+  address_reference?: string | null;
+  address_line?: string | null;
+  postal_code?: string | null;
   address_city: string;
   address_state: string;
   notes: string | null;
@@ -95,7 +105,7 @@ export function AdminDashboard() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [stockRows, setStockRows] = useState<StockRow[]>([]);
-  const [tab, setTab] = useState<"orders" | "products" | "shipping" | "reviews" | "changes">("orders");
+  const [tab, setTab] = useState<"orders" | "products" | "shipping" | "reviews" | "coupons" | "changes">("orders");
   const [orderQuery, setOrderQuery] = useState("");
   const [productQuery, setProductQuery] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | OrderStatus>("all");
@@ -128,7 +138,11 @@ export function AdminDashboard() {
         order.customer_name,
         order.customer_email,
         order.customer_whatsapp,
+        order.customer_company,
         order.product_name,
+        order.address_street,
+        order.address_neighborhood,
+        order.postal_code,
         order.address_city,
         order.address_state,
       ].join(" ").toLowerCase().includes(query);
@@ -349,11 +363,13 @@ export function AdminDashboard() {
   }
 
   function exportOrders() {
-    const headers = ["pedido", "fecha", "cliente", "email", "producto", "talla", "cantidad", "total_mxn", "estado", "produccion", "pago", "envio"];
+    const headers = ["pedido", "fecha", "cliente", "compania", "email", "telefono", "producto", "talla", "cantidad", "total_mxn", "estado", "produccion", "pago", "envio", "pais", "calle", "no_exterior", "no_interior", "colonia", "codigo_postal", "ciudad", "estado_entrega", "referencia"];
     const rows = orders.map((order) => [
-      order.order_code, order.created_at, order.customer_name, order.customer_email, order.product_name,
+      order.order_code, order.created_at, order.customer_name, order.customer_company || "", order.customer_email, order.customer_whatsapp, order.product_name,
       order.size, order.quantity, order.total_mxn, order.status, order.production_status || "",
-      order.payment_status || "", order.shipping_status || "",
+      order.payment_status || "", order.shipping_status || "", order.address_country || "México", order.address_street || order.address_line || "",
+      order.address_exterior_number || "", order.address_interior_number || "", order.address_neighborhood || "",
+      order.postal_code || "", order.address_city, order.address_state, order.address_reference || "",
     ]);
     const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
@@ -386,9 +402,9 @@ export function AdminDashboard() {
         <article><span><Eye size={15} /> DROP LIVE</span><strong>{adminStats.liveProducts}</strong><small>productos activos</small></article>
         <article><span><Mail size={15} /> VENTAS PAGADAS</span><strong>{money(adminStats.revenue)}</strong><small>solo pagos confirmados</small></article>
       </div>
-      <div className="admin-tabs"><button className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>PEDIDOS</button><button className={tab === "shipping" ? "active" : ""} onClick={() => setTab("shipping")}>ENVÍOS</button><button className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>PRODUCTOS</button><button className={tab === "reviews" ? "active" : ""} onClick={() => setTab("reviews")}>RESEÑAS</button><button className={tab === "changes" ? "active" : ""} onClick={() => setTab("changes")}>CAMBIOS</button></div>
+      <div className="admin-tabs"><button className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>PEDIDOS</button><button className={tab === "shipping" ? "active" : ""} onClick={() => setTab("shipping")}>ENVÍOS</button><button className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>PRODUCTOS</button><button className={tab === "coupons" ? "active" : ""} onClick={() => setTab("coupons")}>CUPONES</button><button className={tab === "reviews" ? "active" : ""} onClick={() => setTab("reviews")}>RESEÑAS</button><button className={tab === "changes" ? "active" : ""} onClick={() => setTab("changes")}>CAMBIOS</button></div>
       {lowStockProducts.length > 0 && <div className="low-stock-alert"><AlertTriangle size={15} /><b>STOCK BAJO</b>{lowStockProducts.map((product) => <span key={product.id}>{product.name}</span>)}</div>}
-      {tab === "shipping" ? <AdminShippingPanel orders={orders} getToken={getToken} reloadOrders={loadOrders} /> : tab === "reviews" ? <AdminReviewsPanel products={products} getToken={getToken} /> : tab === "changes" ? <AdminChangesPanel getToken={getToken} /> : tab === "orders" ? <div className="admin-grid">
+      {tab === "shipping" ? <AdminShippingPanel orders={orders} getToken={getToken} reloadOrders={loadOrders} /> : tab === "reviews" ? <AdminReviewsPanel products={products} getToken={getToken} /> : tab === "coupons" ? <AdminCouponsPanel getToken={getToken} /> : tab === "changes" ? <AdminChangesPanel getToken={getToken} /> : tab === "orders" ? <div className="admin-grid">
         <div className="admin-orders">
           <div className="admin-list-tools">
             <label><Search size={14} /><input value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} placeholder="Buscar pedido, cliente, correo..." /></label>
@@ -418,6 +434,23 @@ export function AdminDashboard() {
               <span>{new Date(selected.created_at).toLocaleDateString("es-MX")}</span>
               {selected.payment_provider && <span>PAGO {selected.payment_provider.toUpperCase()} / {selected.payment_status || "PENDIENTE"}</span>}
               {selected.payment_receipt_no && <span>RECIBO {selected.payment_receipt_no}</span>}
+            </div>
+            <div className="admin-customer-details">
+              <article>
+                <span>CONTACTO</span>
+                <strong>{selected.customer_name}</strong>
+                <p>{selected.customer_email}</p>
+                <p>{selected.customer_whatsapp}</p>
+                <p>{selected.customer_company || "Sin compañía"}</p>
+              </article>
+              <article>
+                <span>DIRECCIÓN</span>
+                <strong>{selected.address_street || selected.address_line || "Sin calle"}</strong>
+                <p>No. exterior: {selected.address_exterior_number || "N/A"} / Interior: {selected.address_interior_number || "N/A"}</p>
+                <p>Colonia: {selected.address_neighborhood || "N/A"} / CP: {selected.postal_code || "N/A"}</p>
+                <p>{selected.address_city}, {selected.address_state}, {selected.address_country || "México"}</p>
+                <p>Referencia: {selected.address_reference || "N/A"}</p>
+              </article>
             </div>
             <label><span>ESTADO</span><select value={status} onChange={(event) => setStatus(event.target.value as OrderStatus)}>{ORDER_STATUSES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
             <label><span>ETAPA DE PRODUCCIÓN</span><select value={productionStatus} onChange={(event) => setProductionStatus(event.target.value as ProductionStatus)}>{PRODUCTION_STATUSES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>

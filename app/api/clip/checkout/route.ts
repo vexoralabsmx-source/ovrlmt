@@ -11,10 +11,17 @@ type CheckoutBody = {
   customer?: {
     email?: unknown;
     fullName?: unknown;
+    company?: unknown;
     whatsapp?: unknown;
+    country?: unknown;
+    street?: unknown;
+    exteriorNumber?: unknown;
+    interiorNumber?: unknown;
+    neighborhood?: unknown;
     city?: unknown;
     state?: unknown;
     postalCode?: unknown;
+    reference?: unknown;
     address?: unknown;
   };
   items?: Array<{ slug?: unknown; size?: unknown; quantity?: unknown }>;
@@ -23,6 +30,33 @@ type CheckoutBody = {
 
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const cleanText = (value: unknown, max = 160) => typeof value === "string" ? value.trim().slice(0, max) : "";
+const isMissingColumnError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const message = "message" in error ? String((error as { message?: unknown }).message || "") : "";
+  const details = "details" in error ? String((error as { details?: unknown }).details || "") : "";
+  return /customer_company|address_country|address_street|address_exterior_number|address_interior_number|address_neighborhood|address_reference/i.test(`${message} ${details}`);
+};
+
+function withoutExtendedAddressColumns<T extends Record<string, unknown>>(payload: T) {
+  const {
+    customer_company,
+    address_country,
+    address_street,
+    address_exterior_number,
+    address_interior_number,
+    address_neighborhood,
+    address_reference,
+    ...legacyPayload
+  } = payload;
+  void customer_company;
+  void address_country;
+  void address_street;
+  void address_exterior_number;
+  void address_interior_number;
+  void address_neighborhood;
+  void address_reference;
+  return legacyPayload;
+}
 
 function createOrderCode() {
   const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
@@ -45,20 +79,41 @@ export async function POST(request: Request) {
   const customer = {
     email: cleanText(body.customer?.email, 180).toLowerCase(),
     fullName: cleanText(body.customer?.fullName, 120),
+    company: cleanText(body.customer?.company, 80),
     whatsapp: cleanText(body.customer?.whatsapp, 30),
+    country: cleanText(body.customer?.country, 60) || "México",
+    street: cleanText(body.customer?.street, 120),
+    exteriorNumber: cleanText(body.customer?.exteriorNumber, 20),
+    interiorNumber: cleanText(body.customer?.interiorNumber, 20),
+    neighborhood: cleanText(body.customer?.neighborhood, 100),
     city: cleanText(body.customer?.city, 80),
     state: cleanText(body.customer?.state, 80),
     postalCode: cleanText(body.customer?.postalCode, 5).replace(/\D/g, ""),
-    address: cleanText(body.customer?.address, 220),
+    reference: cleanText(body.customer?.reference, 120),
+    address: cleanText(body.customer?.address, 280),
   };
+  if (!customer.address) {
+    customer.address = [
+      customer.street,
+      customer.exteriorNumber ? `No. ext. ${customer.exteriorNumber}` : "",
+      customer.interiorNumber ? `No. int. ${customer.interiorNumber}` : "",
+      customer.neighborhood ? `Col. ${customer.neighborhood}` : "",
+      customer.reference ? `Ref. ${customer.reference}` : "",
+    ].filter(Boolean).join(", ");
+  }
 
   if (
     !isEmail(customer.email) ||
     !customer.fullName ||
     customer.whatsapp.replace(/\D/g, "").length < 10 ||
+    !customer.country ||
+    customer.street.length < 3 ||
+    !customer.exteriorNumber ||
+    !customer.neighborhood ||
     !customer.city ||
     !customer.state ||
     !/^\d{5}$/.test(customer.postalCode) ||
+    customer.reference.length < 4 ||
     customer.address.length < 8
   ) {
     return NextResponse.json({ error: "Revisa tus datos de contacto y entrega." }, { status: 400 });
@@ -124,37 +179,56 @@ export async function POST(request: Request) {
   const baseUrl = resolveBaseUrl(request);
   const supabase = getSupabaseAdmin();
 
-  const { data: order, error: orderError } = await supabase
+  const orderPayload = {
+    order_code: orderCode,
+    customer_name: customer.fullName,
+    customer_email: customer.email,
+    customer_whatsapp: customer.whatsapp,
+    customer_company: customer.company || null,
+    product_slug: validatedItems.map((item) => item.slug).join(","),
+    product_name: productName,
+    size: validatedItems.length === 1 ? validatedItems[0].size : "MULTI",
+    quantity,
+    unit_price_mxn: validatedItems.length === 1 ? validatedItems[0].unitPriceMxn : Math.round(subtotalMxn / quantity),
+    subtotal_mxn: subtotalMxn,
+    discount_code: coupon?.code || null,
+    discount_mxn: coupon?.discountMxn || 0,
+    shipping_mxn: shippingMxn,
+    total_mxn: totalMxn,
+    shipping_type: localDelivery ? "personal" : "national",
+    address_state: customer.state,
+    address_city: customer.city,
+    address_line: customer.address,
+    postal_code: customer.postalCode,
+    address_country: customer.country,
+    address_street: customer.street,
+    address_exterior_number: customer.exteriorNumber,
+    address_interior_number: customer.interiorNumber || null,
+    address_neighborhood: customer.neighborhood,
+    address_reference: customer.reference,
+    status: "pending_payment",
+    items: validatedItems,
+    payment_provider: "clip",
+    payment_method: "card",
+    payment_status: "creating",
+    source: "website_clip",
+  };
+
+  let insertResult = await supabase
     .from("preorders")
-    .insert({
-      order_code: orderCode,
-      customer_name: customer.fullName,
-      customer_email: customer.email,
-      customer_whatsapp: customer.whatsapp,
-      product_slug: validatedItems.map((item) => item.slug).join(","),
-      product_name: productName,
-      size: validatedItems.length === 1 ? validatedItems[0].size : "MULTI",
-      quantity,
-      unit_price_mxn: validatedItems.length === 1 ? validatedItems[0].unitPriceMxn : Math.round(subtotalMxn / quantity),
-      subtotal_mxn: subtotalMxn,
-      discount_code: coupon?.code || null,
-      discount_mxn: coupon?.discountMxn || 0,
-      shipping_mxn: shippingMxn,
-      total_mxn: totalMxn,
-      shipping_type: localDelivery ? "personal" : "national",
-      address_state: customer.state,
-      address_city: customer.city,
-      address_line: customer.address,
-      postal_code: customer.postalCode,
-      status: "pending_payment",
-      items: validatedItems,
-      payment_provider: "clip",
-      payment_method: "card",
-      payment_status: "creating",
-      source: "website_clip",
-    })
+    .insert(orderPayload)
     .select("id")
     .single();
+
+  if (insertResult.error && isMissingColumnError(insertResult.error)) {
+    insertResult = await supabase
+      .from("preorders")
+      .insert(withoutExtendedAddressColumns(orderPayload))
+      .select("id")
+      .single();
+  }
+
+  const { data: order, error: orderError } = insertResult;
 
   if (orderError || !order) {
     return NextResponse.json({ error: "No pudimos preparar tu orden. Intenta de nuevo." }, { status: 500 });
@@ -205,11 +279,15 @@ export async function POST(request: Request) {
           phone: customer.whatsapp,
         },
         shipping_address: {
-          street: customer.address,
+          street: customer.street,
+          exterior_number: customer.exteriorNumber,
+          interior_number: customer.interiorNumber,
+          neighborhood: customer.neighborhood,
+          reference: customer.reference,
           city: customer.city,
           state: customer.state,
           postal_code: customer.postalCode,
-          country: "MX",
+          country: customer.country,
         },
       },
     });

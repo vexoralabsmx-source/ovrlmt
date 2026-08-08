@@ -21,18 +21,24 @@ export async function GET(request: Request) {
   const supabase = getSupabaseAdmin();
   const fullQuery = await supabase
     .from("preorders")
-    .select("id,order_code,customer_name,customer_email,customer_whatsapp,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,status,production_status,refund_status,refund_reference,address_city,address_state,notes,payment_provider,payment_method,payment_status,payment_receipt_no,paid_at,shipping_status,tracking_id,tracking_link,shipping_provider,shipping_cost_real,created_at,updated_at,shipments(id,provider,provider_id,provider_service_id,service_name,rate_uuid,trx_id,guide_id,tracking_id,tracking_link,shipping_cost,status,created_at,updated_at)")
+    .select("id,order_code,customer_name,customer_email,customer_whatsapp,customer_company,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,status,production_status,refund_status,refund_reference,address_country,address_street,address_exterior_number,address_interior_number,address_neighborhood,address_reference,address_city,address_state,address_line,postal_code,notes,payment_provider,payment_method,payment_status,payment_receipt_no,paid_at,shipping_status,tracking_id,tracking_link,shipping_provider,shipping_cost_real,created_at,updated_at,shipments(id,provider,provider_id,provider_service_id,service_name,rate_uuid,trx_id,guide_id,tracking_id,tracking_link,shipping_cost,status,created_at,updated_at)")
     .order("created_at", { ascending: false })
     .limit(100);
 
   const fallbackQuery = fullQuery.error ? await supabase
     .from("preorders")
-    .select("id,order_code,customer_name,customer_email,customer_whatsapp,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,status,address_city,address_state,notes,created_at,updated_at")
+    .select("id,order_code,customer_name,customer_email,customer_whatsapp,customer_company,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,status,production_status,refund_status,refund_reference,address_country,address_street,address_exterior_number,address_interior_number,address_neighborhood,address_reference,address_city,address_state,address_line,postal_code,notes,payment_provider,payment_method,payment_status,payment_receipt_no,paid_at,created_at,updated_at")
     .order("created_at", { ascending: false })
     .limit(100) : null;
 
-  const data = fallbackQuery?.data || fullQuery.data;
-  const error = fallbackQuery?.error || (fallbackQuery ? null : fullQuery.error);
+  const legacyFallbackQuery = fallbackQuery?.error ? await supabase
+    .from("preorders")
+    .select("id,order_code,customer_name,customer_email,customer_whatsapp,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,status,address_city,address_state,address_line,postal_code,notes,created_at,updated_at")
+    .order("created_at", { ascending: false })
+    .limit(100) : null;
+
+  const data = legacyFallbackQuery?.data || fallbackQuery?.data || fullQuery.data;
+  const error = legacyFallbackQuery?.error || (legacyFallbackQuery ? null : fallbackQuery?.error || (fallbackQuery ? null : fullQuery.error));
 
   if (error) {
     return NextResponse.json({ ok: false, message: "No pudimos cargar pedidos." }, { status: 500 });
@@ -62,7 +68,7 @@ export async function PATCH(request: Request) {
     .from("preorders")
     .update({ status, production_status: productionStatus, refund_status: refundStatus, refund_reference: refundReference || null, refunded_at: refundStatus === "refunded" ? new Date().toISOString() : null, notes: notes || null, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .select("order_code,customer_name,customer_email,customer_whatsapp,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,discount_code,status,address_city,address_state,notes")
+    .select("order_code,customer_name,customer_email,customer_whatsapp,customer_company,product_name,size,quantity,subtotal_mxn,discount_mxn,shipping_mxn,total_mxn,discount_code,status,address_city,address_state,address_line,address_country,address_street,address_exterior_number,address_interior_number,address_neighborhood,address_reference,notes")
     .single();
 
   if (error || !data) {
@@ -80,6 +86,7 @@ export async function PATCH(request: Request) {
       customerName: data.customer_name,
       customerEmail: data.customer_email,
       customerWhatsapp: data.customer_whatsapp,
+      customerCompany: data.customer_company,
       productName: data.product_name,
       size: data.size,
       quantity: Number(data.quantity),
@@ -91,6 +98,13 @@ export async function PATCH(request: Request) {
       status: data.status,
       addressCity: data.address_city,
       addressState: data.address_state,
+      addressLine: data.address_line,
+      addressCountry: data.address_country,
+      addressStreet: data.address_street,
+      addressExteriorNumber: data.address_exterior_number,
+      addressInteriorNumber: data.address_interior_number,
+      addressNeighborhood: data.address_neighborhood,
+      addressReference: data.address_reference,
       notes: data.notes,
     });
     emailSent = result.ok;

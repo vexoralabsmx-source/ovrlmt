@@ -18,20 +18,56 @@ type PreorderRequest = {
   customerName?: string;
   customerEmail?: string;
   customerWhatsapp?: string;
+  customerCompany?: string;
   productSlug?: string;
   productName?: string;
   size?: string;
   quantity?: number;
   unitPriceMxn?: number;
   discountCode?: string;
+  addressCountry?: string;
+  addressStreet?: string;
+  addressExteriorNumber?: string;
+  addressInteriorNumber?: string;
+  addressNeighborhood?: string;
   addressState?: string;
   addressCity?: string;
+  postalCode?: string;
+  addressReference?: string;
+  addressLine?: string;
   shippingType?: string;
   notes?: string;
 };
 
 const VALID_SIZES = new Set(["CH", "M", "G", "XG", "S", "L", "XL", "MULTI"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isMissingColumnError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const message = "message" in error ? String((error as { message?: unknown }).message || "") : "";
+  const details = "details" in error ? String((error as { details?: unknown }).details || "") : "";
+  return /customer_company|address_country|address_street|address_exterior_number|address_interior_number|address_neighborhood|address_reference/i.test(`${message} ${details}`);
+};
+
+function withoutExtendedAddressColumns<T extends Record<string, unknown>>(payload: T) {
+  const {
+    customer_company,
+    address_country,
+    address_street,
+    address_exterior_number,
+    address_interior_number,
+    address_neighborhood,
+    address_reference,
+    ...legacyPayload
+  } = payload;
+  void customer_company;
+  void address_country;
+  void address_street;
+  void address_exterior_number;
+  void address_interior_number;
+  void address_neighborhood;
+  void address_reference;
+  return legacyPayload;
+}
 
 class PreorderError extends Error {
   code: ErrorCode;
@@ -109,14 +145,29 @@ export async function POST(request: Request) {
     const customerName = clean(body.customerName, 120);
     const customerEmail = clean(body.customerEmail, 160).toLowerCase();
     const customerWhatsapp = clean(body.customerWhatsapp, 40);
+    const customerCompany = clean(body.customerCompany, 80);
     const productSlug = clean(body.productSlug, 120);
     const productName = clean(body.productName, 160);
     const size = clean(body.size, 8).toUpperCase();
     const quantity = Math.max(1, Math.min(20, Number(body.quantity) || 0));
     const unitPriceMxn = Math.max(0, Math.round(Number(body.unitPriceMxn) || 0));
     const discountCodeInput = clean(body.discountCode, 60).toUpperCase();
+    const addressCountry = clean(body.addressCountry, 60) || "México";
+    const addressStreet = clean(body.addressStreet, 120);
+    const addressExteriorNumber = clean(body.addressExteriorNumber, 20);
+    const addressInteriorNumber = clean(body.addressInteriorNumber, 20);
+    const addressNeighborhood = clean(body.addressNeighborhood, 100);
     const addressState = clean(body.addressState, 80);
     const addressCity = clean(body.addressCity, 80);
+    const postalCode = clean(body.postalCode, 5).replace(/\D/g, "");
+    const addressReference = clean(body.addressReference, 120);
+    const addressLine = clean(body.addressLine, 280) || [
+      addressStreet,
+      addressExteriorNumber ? `No. ext. ${addressExteriorNumber}` : "",
+      addressInteriorNumber ? `No. int. ${addressInteriorNumber}` : "",
+      addressNeighborhood ? `Col. ${addressNeighborhood}` : "",
+      addressReference ? `Ref. ${addressReference}` : "",
+    ].filter(Boolean).join(", ");
     const shippingType = clean(body.shippingType, 80) || "external";
     const notes = clean(body.notes, 500);
 
@@ -124,12 +175,19 @@ export async function POST(request: Request) {
     if (!customerEmail) throw new PreorderError("missing_required_email", "Agrega tu correo para recibir la confirmación de tu pedido.");
     if (!EMAIL_RE.test(customerEmail)) throw new PreorderError("invalid_payload", "Escribe un correo electrónico válido.");
     if (!customerWhatsapp) throw new PreorderError("invalid_payload", "Agrega tu WhatsApp para poder dar seguimiento.");
+    if (customerWhatsapp.replace(/\D/g, "").length < 10) throw new PreorderError("invalid_payload", "Agrega un teléfono válido.");
     if (!productSlug || !productName) throw new PreorderError("invalid_payload", "Selecciona un producto.");
     if (!VALID_SIZES.has(size)) throw new PreorderError("invalid_payload", "Selecciona una talla.");
     if (!quantity) throw new PreorderError("invalid_payload", "Selecciona una cantidad válida.");
     if (!unitPriceMxn) throw new PreorderError("invalid_payload", "No pudimos validar el precio.");
+    if (!addressCountry) throw new PreorderError("invalid_payload", "Agrega tu país.");
+    if (addressStreet.length < 3) throw new PreorderError("invalid_payload", "Agrega tu calle.");
+    if (!addressExteriorNumber) throw new PreorderError("invalid_payload", "Agrega tu número exterior.");
+    if (!addressNeighborhood) throw new PreorderError("invalid_payload", "Agrega tu colonia.");
     if (!addressCity) throw new PreorderError("invalid_payload", "Agrega tu ciudad.");
     if (!addressState) throw new PreorderError("invalid_payload", "Agrega tu estado.");
+    if (!/^\d{5}$/.test(postalCode)) throw new PreorderError("invalid_payload", "Agrega un código postal válido.");
+    if (addressReference.length < 4) throw new PreorderError("invalid_payload", "Agrega una referencia de entrega.");
 
     const subtotalMxn = quantity * unitPriceMxn;
     const coupon = await resolveCoupon(discountCodeInput, subtotalMxn);
@@ -144,6 +202,7 @@ export async function POST(request: Request) {
       customer_name: customerName,
       customer_email: customerEmail,
       customer_whatsapp: customerWhatsapp,
+      customer_company: customerCompany || null,
       product_slug: productSlug,
       product_name: productName,
       size,
@@ -157,13 +216,25 @@ export async function POST(request: Request) {
       shipping_type: shippingType,
       address_state: addressState,
       address_city: addressCity,
+      address_line: addressLine,
+      postal_code: postalCode,
+      address_country: addressCountry,
+      address_street: addressStreet,
+      address_exterior_number: addressExteriorNumber,
+      address_interior_number: addressInteriorNumber || null,
+      address_neighborhood: addressNeighborhood,
+      address_reference: addressReference,
       status,
       notes: notes || null,
       source: "website",
     };
 
     const supabase = getSupabaseAdmin();
-    const { error: insertError } = await supabase.from("preorders").insert(order);
+    let insertResult = await supabase.from("preorders").insert(order);
+    if (insertResult.error && isMissingColumnError(insertResult.error)) {
+      insertResult = await supabase.from("preorders").insert(withoutExtendedAddressColumns(order));
+    }
+    const { error: insertError } = insertResult;
     if (insertError) {
       throw new PreorderError("supabase_insert_failed", "No pudimos guardar tu pedido. Revisa la conexión o configuración de Supabase.", 500, insertError.message);
     }
@@ -188,6 +259,7 @@ export async function POST(request: Request) {
       customerName,
       customerEmail,
       customerWhatsapp,
+      customerCompany: customerCompany || null,
       productName,
       size,
       quantity,
@@ -199,6 +271,13 @@ export async function POST(request: Request) {
       status,
       addressCity,
       addressState,
+      addressLine,
+      addressCountry,
+      addressStreet,
+      addressExteriorNumber,
+      addressInteriorNumber: addressInteriorNumber || null,
+      addressNeighborhood,
+      addressReference,
       notes: notes || null,
     };
 

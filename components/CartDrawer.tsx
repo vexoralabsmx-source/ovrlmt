@@ -18,9 +18,9 @@ export function CartDrawer() {
   return <AnimatePresence>{cart.isOpen && <motion.div className="cart-layer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
     <button className="cart-backdrop" onClick={cart.closeCart} aria-label="Cerrar carrito" />
     <motion.aside className="cart-drawer" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ duration: .38, ease: [0.77, 0, .18, 1] }} aria-label="Carrito">
-      <div className="cart-head"><div><span>ORDER SYSTEM / 001</span><h2>TU CARRITO <b>{String(cart.itemCount).padStart(2, "0")}</b></h2></div><button onClick={cart.closeCart} aria-label="Cerrar"><X /></button></div>
+      <div className="cart-head"><div><span>ORDER SYSTEM</span><h2>TU CARRITO <b>{String(cart.itemCount).padStart(2, "0")}</b></h2></div><button onClick={cart.closeCart} aria-label="Cerrar"><X /></button></div>
       <div className="cart-body">
-        {cart.items.length === 0 ? <div className="cart-empty"><ShoppingBag size={38} /><p>TU CARRITO ESTÁ VACÍO</p><span>Agrega una pieza del DROP 001 para comenzar.</span></div> : cart.items.map((item) => <article className="cart-item" key={`${item.slug}-${item.size}`}>
+        {cart.items.length === 0 ? <div className="cart-empty"><ShoppingBag size={38} /><p>TU CARRITO ESTÁ VACÍO</p><span>Agrega una pieza de nuestros Drops activos para comenzar.</span></div> : cart.items.map((item) => <article className="cart-item" key={`${item.slug}-${item.size}`}>
           <div className="cart-thumb"><Image src={item.image} alt={item.name} fill sizes="90px" /></div>
           <div className="cart-item-copy"><div><h3>{item.name}</h3><p>TALLA {item.size} / {money(item.priceMxn || PRODUCT_PRICE)} C/U</p></div>
             <div className="cart-item-bottom"><div className="qty-control"><button type="button" onClick={() => cart.updateQuantity(item.slug, item.size, item.quantity - 1)} aria-label="Restar"><Minus size={12} /></button><span>{item.quantity}</span><button type="button" onClick={() => cart.updateQuantity(item.slug, item.size, item.quantity + 1)} aria-label="Sumar"><Plus size={12} /></button></div><strong>{money(item.quantity * (item.priceMxn || PRODUCT_PRICE))}</strong></div>

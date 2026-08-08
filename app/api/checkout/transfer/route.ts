@@ -19,6 +19,33 @@ type TransferBody = {
 const clean = (value: unknown, max = 160) => typeof value === "string" ? value.trim().slice(0, max) : "";
 const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const validPhone = (value: string) => value.replace(/\D/g, "").length >= 10;
+const isMissingColumnError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const message = "message" in error ? String((error as { message?: unknown }).message || "") : "";
+  const details = "details" in error ? String((error as { details?: unknown }).details || "") : "";
+  return /customer_company|address_country|address_street|address_exterior_number|address_interior_number|address_neighborhood|address_reference/i.test(`${message} ${details}`);
+};
+
+function withoutExtendedAddressColumns<T extends Record<string, unknown>>(payload: T) {
+  const {
+    customer_company,
+    address_country,
+    address_street,
+    address_exterior_number,
+    address_interior_number,
+    address_neighborhood,
+    address_reference,
+    ...legacyPayload
+  } = payload;
+  void customer_company;
+  void address_country;
+  void address_street;
+  void address_exterior_number;
+  void address_interior_number;
+  void address_neighborhood;
+  void address_reference;
+  return legacyPayload;
+}
 
 function orderCode() {
   return `OVR-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
@@ -29,20 +56,41 @@ export async function POST(request: Request) {
   const customer = {
     email: clean(body?.customer?.email, 180).toLowerCase(),
     fullName: clean(body?.customer?.fullName, 120),
+    company: clean(body?.customer?.company, 80),
     whatsapp: clean(body?.customer?.whatsapp, 30),
+    country: clean(body?.customer?.country, 60) || "México",
+    street: clean(body?.customer?.street, 120),
+    exteriorNumber: clean(body?.customer?.exteriorNumber, 20),
+    interiorNumber: clean(body?.customer?.interiorNumber, 20),
+    neighborhood: clean(body?.customer?.neighborhood, 100),
     city: clean(body?.customer?.city, 80),
     state: clean(body?.customer?.state, 80),
     postalCode: clean(body?.customer?.postalCode, 5).replace(/\D/g, ""),
-    address: clean(body?.customer?.address, 220),
+    reference: clean(body?.customer?.reference, 120),
+    address: clean(body?.customer?.address, 280),
   };
+  if (!customer.address) {
+    customer.address = [
+      customer.street,
+      customer.exteriorNumber ? `No. ext. ${customer.exteriorNumber}` : "",
+      customer.interiorNumber ? `No. int. ${customer.interiorNumber}` : "",
+      customer.neighborhood ? `Col. ${customer.neighborhood}` : "",
+      customer.reference ? `Ref. ${customer.reference}` : "",
+    ].filter(Boolean).join(", ");
+  }
 
   if (
     !validEmail(customer.email) ||
     !customer.fullName ||
     !validPhone(customer.whatsapp) ||
+    !customer.country ||
+    customer.street.length < 3 ||
+    !customer.exteriorNumber ||
+    !customer.neighborhood ||
     !customer.city ||
     !customer.state ||
     !/^\d{5}$/.test(customer.postalCode) ||
+    customer.reference.length < 4 ||
     customer.address.length < 8
   ) {
     return NextResponse.json({ error: "Completa correctamente todos los datos obligatorios." }, { status: 400 });
@@ -117,11 +165,12 @@ export async function POST(request: Request) {
   const totalMxn = afterDiscount + shippingMxn;
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const code = orderCode();
-  const { data: order, error } = await supabase.from("preorders").insert({
+  const orderPayload = {
     order_code: code,
     customer_name: customer.fullName,
     customer_email: customer.email,
     customer_whatsapp: customer.whatsapp,
+    customer_company: customer.company || null,
     product_slug: items.map((item) => item.slug).join(","),
     product_name: items.map((item) => `${item.quantity}x ${item.name}`).join(", "),
     size: items.length === 1 ? items[0].size : "MULTI",
@@ -137,6 +186,12 @@ export async function POST(request: Request) {
     address_city: customer.city,
     address_line: customer.address,
     postal_code: customer.postalCode,
+    address_country: customer.country,
+    address_street: customer.street,
+    address_exterior_number: customer.exteriorNumber,
+    address_interior_number: customer.interiorNumber || null,
+    address_neighborhood: customer.neighborhood,
+    address_reference: customer.reference,
     status: "pending_payment",
     items,
     payment_provider: "manual",
@@ -144,7 +199,12 @@ export async function POST(request: Request) {
     payment_status: "awaiting_proof",
     production_status: "received",
     source: "website_transfer",
-  }).select("id").single();
+  };
+  let insertResult = await supabase.from("preorders").insert(orderPayload).select("id").single();
+  if (insertResult.error && isMissingColumnError(insertResult.error)) {
+    insertResult = await supabase.from("preorders").insert(withoutExtendedAddressColumns(orderPayload)).select("id").single();
+  }
+  const { data: order, error } = insertResult;
   if (error || !order) return NextResponse.json({ error: "No pudimos guardar tu pedido." }, { status: 500 });
 
   await supabase.rpc("release_expired_stock_reservations");
@@ -167,7 +227,11 @@ export async function POST(request: Request) {
     customerWhatsapp: customer.whatsapp, productName: items.map((item) => item.name).join(", "),
     size: items.length === 1 ? items[0].size : "MULTI", quantity: totalQuantity, subtotalMxn,
     discountMxn, shippingMxn, totalMxn, discountCode, status: "pending_payment",
-    addressCity: customer.city, addressState: customer.state,
+    customerCompany: customer.company || null,
+    addressCity: customer.city, addressState: customer.state, addressLine: customer.address,
+    addressCountry: customer.country, addressStreet: customer.street, addressExteriorNumber: customer.exteriorNumber,
+    addressInteriorNumber: customer.interiorNumber || null, addressNeighborhood: customer.neighborhood,
+    addressReference: customer.reference,
     notes: "Transferencia pendiente de comprobante. La reserva vence en 3 horas.",
   };
   await Promise.allSettled([sendCustomerPreorderEmail(emailOrder), sendAdminPreorderNotification(emailOrder)]);

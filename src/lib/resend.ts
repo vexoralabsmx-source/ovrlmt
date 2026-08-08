@@ -7,6 +7,7 @@ export type EmailOrder = {
   customerName: string;
   customerEmail: string;
   customerWhatsapp: string;
+  customerCompany?: string | null;
   productName: string;
   size: string;
   quantity: number;
@@ -16,6 +17,13 @@ export type EmailOrder = {
   totalMxn: number;
   discountCode?: string | null;
   status: string;
+  addressLine?: string | null;
+  addressCountry?: string | null;
+  addressStreet?: string | null;
+  addressExteriorNumber?: string | null;
+  addressInteriorNumber?: string | null;
+  addressNeighborhood?: string | null;
+  addressReference?: string | null;
   addressCity?: string | null;
   addressState?: string | null;
   notes?: string | null;
@@ -181,6 +189,7 @@ function orderSummaryTable(order: EmailOrder, includeCustomerDetails = false) {
       ${includeCustomerDetails ? detailRow("Cliente", order.customerName) : ""}
       ${includeCustomerDetails ? detailRow("Email", order.customerEmail) : ""}
       ${includeCustomerDetails ? detailRow("WhatsApp", order.customerWhatsapp) : ""}
+      ${includeCustomerDetails ? detailRow("Compania", order.customerCompany || "N/A") : ""}
       ${detailRow("Producto", order.productName)}
       ${detailRow("Talla", order.size)}
       ${detailRow("Cantidad", order.quantity)}
@@ -188,6 +197,21 @@ function orderSummaryTable(order: EmailOrder, includeCustomerDetails = false) {
       ${detailRow("Descuento", formatMoney(order.discountMxn))}
       ${detailRow("Envio", formatMoney(order.shippingMxn))}
       ${detailRow("Total", formatMoney(order.totalMxn), { strong: true })}
+    </table>
+  `;
+}
+
+function addressSummaryTable(order: EmailOrder) {
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0;">
+      ${detailRow("Pais", order.addressCountry || "Mexico")}
+      ${detailRow("Calle", order.addressStreet || order.addressLine || "N/A")}
+      ${detailRow("No. exterior", order.addressExteriorNumber || "N/A")}
+      ${detailRow("No. interior", order.addressInteriorNumber || "N/A")}
+      ${detailRow("Colonia", order.addressNeighborhood || "N/A")}
+      ${detailRow("Ciudad", order.addressCity || "N/A")}
+      ${detailRow("Estado", order.addressState || "N/A")}
+      ${detailRow("Referencia", order.addressReference || "N/A")}
     </table>
   `;
 }
@@ -208,6 +232,10 @@ export async function sendCustomerPreorderEmail(order: EmailOrder): Promise<Emai
           <div style="padding:20px;border:1px solid #242424;background:#0b0b0b;">
             <p style="margin:0 0 16px;color:#777;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;">Resumen del pedido</p>
             ${orderSummaryTable(order)}
+          </div>
+          <div style="margin-top:14px;padding:20px;border:1px solid #242424;background:#0b0b0b;">
+            <p style="margin:0 0 16px;color:#777;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;">Datos de entrega</p>
+            ${addressSummaryTable(order)}
           </div>
           <div style="margin-top:14px;padding:20px;border:1px solid #2d1517;background:#130609;">
             <p style="margin:0;color:#f3f0ea;font-size:14px;line-height:1.7;">
@@ -254,9 +282,11 @@ export async function sendAdminPreorderNotification(order: EmailOrder): Promise<
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
               ${detailRow("Cupon", order.discountCode || "Sin cupon")}
               ${detailRow("Status", order.status)}
-              ${detailRow("Ciudad", order.addressCity || "N/A")}
-              ${detailRow("Estado", order.addressState || "N/A")}
             </table>
+          </div>
+          <div style="margin-top:14px;padding:20px;border:1px solid #242424;background:#0b0b0b;">
+            <p style="margin:0 0 16px;color:#777;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;">Datos de entrega</p>
+            ${addressSummaryTable(order)}
           </div>
           <div style="margin-top:14px;padding:20px;border:1px solid #242424;background:#050505;">
             <p style="margin:0 0 9px;color:#777;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;">Notas</p>

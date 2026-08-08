@@ -55,6 +55,31 @@ export function PreorderForm({ initialProduct }: { initialProduct?: string }) {
       setSubmitting(false);
       return;
     }
+    if (String(form.get("customerWhatsapp") || "").replace(/\D/g, "").length < 10) {
+      setError("Agrega un teléfono válido de al menos 10 dígitos.");
+      setSubmitting(false);
+      return;
+    }
+    const requiredDeliveryFields = [
+      ["addressStreet", "calle"],
+      ["addressExteriorNumber", "número exterior"],
+      ["postalCode", "código postal"],
+      ["addressNeighborhood", "colonia"],
+      ["addressCity", "ciudad"],
+      ["addressState", "estado"],
+      ["addressReference", "referencia"],
+    ];
+    const missingDelivery = requiredDeliveryFields.find(([field]) => !String(form.get(field) || "").trim());
+    if (missingDelivery) {
+      setError(`Agrega tu ${missingDelivery[1]}.`);
+      setSubmitting(false);
+      return;
+    }
+    if (!/^\d{5}$/.test(String(form.get("postalCode") || "").replace(/\D/g, ""))) {
+      setError("Agrega un código postal de 5 dígitos.");
+      setSubmitting(false);
+      return;
+    }
     if (!size) {
       setError("Selecciona una talla.");
       setSubmitting(false);
@@ -65,14 +90,22 @@ export function PreorderForm({ initialProduct }: { initialProduct?: string }) {
       customerName: form.get("customerName"),
       customerEmail: form.get("customerEmail"),
       customerWhatsapp: form.get("customerWhatsapp"),
+      customerCompany: form.get("customerCompany"),
       productSlug,
       productName: `${selectedProduct.name} ${selectedProduct.piece}`,
       size,
       quantity,
       unitPriceMxn: PRODUCT_PRICE,
       discountCode: form.get("discountCode"),
+      addressCountry: "México",
+      addressStreet: form.get("addressStreet"),
+      addressExteriorNumber: form.get("addressExteriorNumber"),
+      addressInteriorNumber: form.get("addressInteriorNumber"),
+      addressNeighborhood: form.get("addressNeighborhood"),
       addressState: form.get("addressState"),
       addressCity: form.get("addressCity"),
+      postalCode: form.get("postalCode"),
+      addressReference: form.get("addressReference"),
       shippingType: form.get("shippingType"),
       notes: form.get("notes"),
     };
@@ -118,17 +151,25 @@ export function PreorderForm({ initialProduct }: { initialProduct?: string }) {
   }
 
   return <form className="preorder-form" onSubmit={submit}>
-    <label className="full"><span>01 / NOMBRE COMPLETO</span><input name="customerName" required autoComplete="name" placeholder="TU NOMBRE" /></label>
-    <label><span>02 / WHATSAPP</span><input name="customerWhatsapp" required inputMode="tel" autoComplete="tel" placeholder="+52" /></label>
-    <label><span>03 / CORREO ELECTRÓNICO *</span><input name="customerEmail" required type="email" autoComplete="email" placeholder="TU CORREO" /><small>Lo usaremos para enviarte la confirmación y seguimiento de tu pedido.</small></label>
-    <label><span>04 / PRODUCTO</span><select name="productSlug" value={productSlug} onChange={(event) => setProductSlug(event.target.value)}>{products.map((product) => <option value={product.slug} key={product.slug}>{product.name} {product.piece} / {product.price}</option>)}</select></label>
-    <label><span>05 / TALLA</span><select name="size" value={size} onChange={(event) => setSize(event.target.value)}>{SIZES.map((item) => <option key={item}>{item}</option>)}</select></label>
-    <label><span>06 / CANTIDAD</span><input name="quantity" type="number" min="1" max="20" value={quantity} onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))} required /></label>
-    <label><span>07 / CUPÓN</span><input name="discountCode" placeholder="OVRLMT-10FFDP1" /></label>
-    <label><span>08 / CIUDAD</span><input name="addressCity" required autoComplete="address-level2" placeholder="CIUDAD" /></label>
-    <label><span>09 / ESTADO</span><input name="addressState" required autoComplete="address-level1" placeholder="ESTADO" /></label>
-    <fieldset className="preorder-shipping"><legend>10 / TIPO DE ENVÍO</legend><label><input type="radio" name="shippingType" value="external" defaultChecked /> ENVÍO EXTERNO</label><label><input type="radio" name="shippingType" value="local" /> ENTREGA LOCAL</label></fieldset>
-    <label className="full"><span>11 / NOTAS OPCIONALES</span><textarea name="notes" rows={3} placeholder="DETALLES ADICIONALES" /></label>
+    <label><span>01 / NOMBRE DEL CONTACTO *</span><input name="customerName" required autoComplete="name" placeholder="TU NOMBRE" maxLength={30} /></label>
+    <label><span>02 / COMPAÑÍA (OPCIONAL)</span><input name="customerCompany" autoComplete="organization" maxLength={50} /></label>
+    <label><span>03 / WHATSAPP *</span><input name="customerWhatsapp" required inputMode="tel" autoComplete="tel" placeholder="+52" /></label>
+    <label><span>04 / CORREO ELECTRÓNICO *</span><input name="customerEmail" required type="email" autoComplete="email" placeholder="TU CORREO" /><small>Lo usaremos para enviarte la confirmación y seguimiento de tu pedido.</small></label>
+    <label><span>05 / PRODUCTO</span><select name="productSlug" value={productSlug} onChange={(event) => setProductSlug(event.target.value)}>{products.map((product) => <option value={product.slug} key={product.slug}>{product.name} {product.piece} / {product.price}</option>)}</select></label>
+    <label><span>06 / TALLA</span><select name="size" value={size} onChange={(event) => setSize(event.target.value)}>{SIZES.map((item) => <option key={item}>{item}</option>)}</select></label>
+    <label><span>07 / CANTIDAD</span><input name="quantity" type="number" min="1" max="20" value={quantity} onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))} required /></label>
+    <label><span>08 / CUPÓN</span><input name="discountCode" placeholder="OVRLMT-10FFDP1" /></label>
+    <label><span>09 / PAÍS *</span><select name="addressCountry" defaultValue="México" required><option value="México">México</option></select></label>
+    <label><span>10 / CALLE *</span><input name="addressStreet" required autoComplete="address-line1" maxLength={42} /></label>
+    <label><span>11 / NO. EXTERIOR *</span><input name="addressExteriorNumber" required maxLength={5} /></label>
+    <label><span>12 / NO. INTERIOR (OPCIONAL)</span><input name="addressInteriorNumber" maxLength={5} /></label>
+    <label><span>13 / CÓDIGO POSTAL *</span><input name="postalCode" required inputMode="numeric" pattern="\d{5}" minLength={5} maxLength={5} /></label>
+    <label><span>14 / COLONIA *</span><input name="addressNeighborhood" required autoComplete="address-level3" /></label>
+    <label><span>15 / CIUDAD *</span><input name="addressCity" required autoComplete="address-level2" placeholder="CIUDAD" /></label>
+    <label><span>16 / ESTADO *</span><input name="addressState" required autoComplete="address-level1" placeholder="ESTADO" /></label>
+    <label className="full"><span>17 / REFERENCIA *</span><input name="addressReference" required maxLength={25} placeholder="ENTRE CALLES O PUNTO CERCANO" /></label>
+    <fieldset className="preorder-shipping"><legend>19 / TIPO DE ENVÍO</legend><label><input type="radio" name="shippingType" value="external" defaultChecked /> ENVÍO EXTERNO</label><label><input type="radio" name="shippingType" value="local" /> ENTREGA LOCAL</label></fieldset>
+    <label className="full"><span>18 / NOTAS OPCIONALES</span><textarea name="notes" rows={3} placeholder="DETALLES ADICIONALES" /></label>
     {error ? <p className="preorder-error">{error}</p> : null}
     <button className="submit-btn" type="submit" disabled={isSubmitting}><span>{isSubmitting ? "REGISTRANDO..." : "APARTAR PLAYERA"}</span><span>↗</span></button>
     <p className="preorder-confirmation"><strong>Todo es sobre pedido.</strong> La producción inicia al confirmar el pago. Envío externo: $150 MXN; gratis desde $1,500 MXN después de descuento.</p>

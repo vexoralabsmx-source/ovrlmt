@@ -38,6 +38,7 @@ create table if not exists public.preorders (
   customer_name text not null,
   customer_email text not null,
   customer_whatsapp text not null,
+  customer_company text,
   product_slug text not null,
   product_name text not null,
   size text not null,
@@ -53,6 +54,12 @@ create table if not exists public.preorders (
   address_city text not null,
   address_line text,
   postal_code text,
+  address_country text default 'Mexico',
+  address_street text,
+  address_exterior_number text,
+  address_interior_number text,
+  address_neighborhood text,
+  address_reference text,
   status text default 'pending_payment',
   payment_proof_url text,
   items jsonb not null default '[]'::jsonb,
@@ -84,6 +91,10 @@ create table if not exists public.coupons (
   active boolean default true,
   max_uses int,
   used_count int default 0,
+  minimum_subtotal_mxn numeric default 0,
+  first_order_only boolean default false,
+  starts_at timestamptz,
+  ends_at timestamptz,
   created_at timestamptz default now()
 );
 

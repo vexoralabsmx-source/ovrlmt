@@ -103,7 +103,8 @@ export async function getCatalogProducts(options: { includeHidden?: boolean; fea
       .select("product_id,size,total,reserved,sold")
       .in("product_id", productIds);
 
-    return fromRows(rows as ProductRow[], (stockRows || []) as StockRow[]);
+    const dbProducts = fromRows(rows as ProductRow[], (stockRows || []) as StockRow[]);
+    return options.featuredOnly ? dbProducts.filter((item) => item.featured) : dbProducts;
   } catch {
     return options.featuredOnly ? fallbackProducts.filter((item) => item.featured) : fallbackProducts;
   }

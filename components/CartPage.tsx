@@ -39,11 +39,17 @@ type PaymentMethod = "clip" | "transfer";
 type CheckoutData = {
   email: string;
   fullName: string;
+  company: string;
   whatsapp: string;
+  country: string;
+  street: string;
+  exteriorNumber: string;
+  interiorNumber: string;
+  neighborhood: string;
   city: string;
   state: string;
   postalCode: string;
-  address: string;
+  reference: string;
 };
 
 type SuccessOrder = {
@@ -66,11 +72,17 @@ const CHECKOUT_DRAFT_KEY = "ovrlmt-checkout-draft-v1";
 const emptyData: CheckoutData = {
   email: "",
   fullName: "",
+  company: "",
   whatsapp: "",
+  country: "México",
+  street: "",
+  exteriorNumber: "",
+  interiorNumber: "",
+  neighborhood: "",
   city: "",
   state: "",
   postalCode: "",
-  address: "",
+  reference: "",
 };
 
 const steps: Array<{ id: Step; label: string; icon: typeof Mail }> = [
@@ -82,6 +94,13 @@ const steps: Array<{ id: Step; label: string; icon: typeof Mail }> = [
 const money = (value: number) => `$${value.toLocaleString("es-MX")} MXN`;
 const isLocalPostalCode = (postalCode: string) => /^(72|73|74)/.test(postalCode.replace(/\D/g, ""));
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+const buildAddressLine = (customer: CheckoutData) => [
+  customer.street,
+  customer.exteriorNumber ? `No. ext. ${customer.exteriorNumber}` : "",
+  customer.interiorNumber ? `No. int. ${customer.interiorNumber}` : "",
+  customer.neighborhood ? `Col. ${customer.neighborhood}` : "",
+  customer.reference ? `Ref. ${customer.reference}` : "",
+].filter(Boolean).join(", ");
 
 function getShipping(subtotal: number, postalCode: string) {
   const cleanPostalCode = postalCode.replace(/\D/g, "");
@@ -149,7 +168,7 @@ export function CartPage() {
       const saved = localStorage.getItem(CHECKOUT_DRAFT_KEY);
       if (saved) {
         const draft = JSON.parse(saved) as { data?: CheckoutData; step?: Step; couponCode?: string };
-        if (draft.data) setData(draft.data);
+        if (draft.data) setData({ ...emptyData, ...draft.data });
         if (draft.step) setStep(draft.step);
         if (draft.couponCode) setCouponCode(draft.couponCode);
       }
@@ -259,7 +278,13 @@ export function CartPage() {
   }, [cart, router, searchParams]);
 
   function updateField(field: keyof CheckoutData, value: string) {
-    const nextValue = field === "postalCode" ? value.replace(/\D/g, "").slice(0, 5) : value;
+    const nextValue = field === "postalCode"
+      ? value.replace(/\D/g, "").slice(0, 5)
+      : field === "whatsapp"
+        ? value.replace(/[^\d+ ()-]/g, "").slice(0, 18)
+        : field === "exteriorNumber" || field === "interiorNumber"
+          ? value.replace(/[^\dA-Za-z -]/g, "").slice(0, 5)
+          : value;
     setData((current) => ({ ...current, [field]: nextValue }));
     if (errors[field]) setErrors((current) => ({ ...current, [field]: "" }));
   }
@@ -274,10 +299,14 @@ export function CartPage() {
     const nextErrors: Partial<Record<keyof CheckoutData, string>> = {};
     if (!data.fullName.trim()) nextErrors.fullName = "Nombre obligatorio.";
     if (data.whatsapp.replace(/\D/g, "").length < 10) nextErrors.whatsapp = "Ingresa un teléfono de al menos 10 dígitos.";
+    if (!data.country.trim()) nextErrors.country = "País obligatorio.";
+    if (data.street.trim().length < 3) nextErrors.street = "Calle obligatoria.";
+    if (!data.exteriorNumber.trim()) nextErrors.exteriorNumber = "Número exterior obligatorio.";
+    if (!data.neighborhood.trim()) nextErrors.neighborhood = "Colonia obligatoria.";
     if (!data.city.trim()) nextErrors.city = "Ciudad obligatoria.";
     if (!data.state.trim()) nextErrors.state = "Estado obligatorio.";
     if (!/^\d{5}$/.test(cleanPostalCode)) nextErrors.postalCode = "CP de 5 dígitos.";
-    if (data.address.trim().length < 8) nextErrors.address = "Incluye calle, número y colonia.";
+    if (data.reference.trim().length < 4) nextErrors.reference = "Agrega una referencia de entrega.";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
@@ -329,12 +358,13 @@ export function CartPage() {
   async function startClipCheckout() {
     setIsSubmitting(true);
     setPaymentError("");
+    const checkoutCustomer = { ...data, address: buildAddressLine(data) };
     try {
       const response = await fetch("/api/clip/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customer: data,
+          customer: checkoutCustomer,
           items: cart.items.map(({ slug, size, quantity }) => ({ slug, size, quantity })),
           couponCode: discountMxn > 0 ? couponCode : "",
         }),
@@ -380,12 +410,13 @@ export function CartPage() {
 
     setIsSubmitting(true);
     setPaymentError("");
+    const checkoutCustomer = { ...data, address: buildAddressLine(data) };
     try {
       const response = await fetch("/api/checkout/transfer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customer: data,
+          customer: checkoutCustomer,
           items: cart.items.map(({ slug, size, quantity }) => ({ slug, size, quantity })),
           couponCode: discountMxn > 0 ? couponCode : "",
         }),
@@ -432,6 +463,10 @@ export function CartPage() {
           <div><span>MÉTODO</span><strong>{paidWithClip ? "Tarjeta / Clip" : "Transferencia"}</strong></div>
           <div><span>ESTADO</span><strong>{paidWithClip ? "Pagado" : "Por confirmar"}</strong></div>
           <div><span>{paidWithClip ? "RECIBO" : "BANCO"}</span><strong>{paidWithClip ? successOrder.receiptNo || "Confirmado por Clip" : PAYMENT_DETAILS.bank}</strong></div>
+        </div>
+        <div className="success-customer-card">
+          <div><span>CONTACTO</span><strong>{successOrder.customer.fullName}</strong><p>{successOrder.customer.email} / {successOrder.customer.whatsapp}</p></div>
+          <div><span>ENTREGA</span><strong>{successOrder.customer.neighborhood}, {successOrder.customer.city}</strong><p>{buildAddressLine(successOrder.customer)}</p></div>
         </div>
         <div className="success-products">
           {successOrder.items.map((item) => (
@@ -529,12 +564,18 @@ export function CartPage() {
                   <h2>Entrega sin fricción.</h2>
                   <p>Completa todos los campos. Son obligatorios para procesar el pago y entregar tu pedido.</p>
                   <div className="checkout-fields-grid">
-                    <label className="wide"><span>NOMBRE COMPLETO *</span><input required aria-required="true" value={data.fullName} onChange={(event) => updateField("fullName", event.target.value)} autoComplete="name" />{errors.fullName && <small>{errors.fullName}</small>}</label>
-                    <label><span>TELÉFONO WHATSAPP *</span><input required aria-required="true" value={data.whatsapp} onChange={(event) => updateField("whatsapp", event.target.value)} type="tel" autoComplete="tel" />{errors.whatsapp && <small>{errors.whatsapp}</small>}</label>
+                    <label><span>NOMBRE DEL CONTACTO *</span><input required aria-required="true" value={data.fullName} onChange={(event) => updateField("fullName", event.target.value)} autoComplete="name" maxLength={30} />{errors.fullName && <small>{errors.fullName}</small>}</label>
+                    <label><span>COMPAÑÍA (OPCIONAL)</span><input value={data.company} onChange={(event) => updateField("company", event.target.value)} autoComplete="organization" maxLength={50} /></label>
+                    <label><span>TELÉFONO *</span><input required aria-required="true" value={data.whatsapp} onChange={(event) => updateField("whatsapp", event.target.value)} type="tel" inputMode="tel" autoComplete="tel" maxLength={18} />{errors.whatsapp && <small>{errors.whatsapp}</small>}</label>
+                    <label><span>PAÍS *</span><select required aria-required="true" value={data.country} onChange={(event) => updateField("country", event.target.value)} autoComplete="country-name"><option value="México">México</option></select>{errors.country && <small>{errors.country}</small>}</label>
+                    <label className="wide"><span>CALLE *</span><input required aria-required="true" value={data.street} onChange={(event) => updateField("street", event.target.value)} autoComplete="address-line1" maxLength={42} />{errors.street && <small>{errors.street}</small>}</label>
+                    <label><span>NO. EXTERIOR *</span><input required aria-required="true" value={data.exteriorNumber} onChange={(event) => updateField("exteriorNumber", event.target.value)} autoComplete="address-line2" maxLength={5} />{errors.exteriorNumber && <small>{errors.exteriorNumber}</small>}</label>
+                    <label><span>NO. INTERIOR (OPCIONAL)</span><input value={data.interiorNumber} onChange={(event) => updateField("interiorNumber", event.target.value)} autoComplete="address-line3" maxLength={5} /></label>
                     <label><span>CÓDIGO POSTAL * {zipLoading && "· BUSCANDO..."}</span><input required aria-required="true" value={data.postalCode} onChange={(event) => updateField("postalCode", event.target.value)} inputMode="numeric" pattern="\d{5}" minLength={5} maxLength={5} />{errors.postalCode && <small>{errors.postalCode}</small>}</label>
+                    <label><span>COLONIA *</span><input required aria-required="true" value={data.neighborhood} onChange={(event) => updateField("neighborhood", event.target.value)} autoComplete="address-level3" />{errors.neighborhood && <small>{errors.neighborhood}</small>}</label>
                     <label><span>CIUDAD *</span><input required aria-required="true" value={data.city} onChange={(event) => updateField("city", event.target.value)} autoComplete="address-level2" />{errors.city && <small>{errors.city}</small>}</label>
                     <label><span>ESTADO *</span><input required aria-required="true" value={data.state} onChange={(event) => updateField("state", event.target.value)} autoComplete="address-level1" />{errors.state && <small>{errors.state}</small>}</label>
-                    <label className="wide"><span>DIRECCIÓN COMPLETA *</span><input required aria-required="true" value={data.address} onChange={(event) => updateField("address", event.target.value)} autoComplete="street-address" placeholder="Calle, número, colonia y referencias" />{errors.address && <small>{errors.address}</small>}</label>
+                    <label className="wide"><span>REFERENCIA *</span><input required aria-required="true" value={data.reference} onChange={(event) => updateField("reference", event.target.value)} placeholder="Entre calles, color de fachada o punto cercano" maxLength={25} />{errors.reference && <small>{errors.reference}</small>}</label>
                   </div>
                   {cleanPostalCode.length === 5 && (
                     <div className={`delivery-result ${localDelivery ? "personal" : "national"}`}>
