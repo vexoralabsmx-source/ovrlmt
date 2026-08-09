@@ -2,16 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-function getTomorrow3PM(launchAt?: string): number {
-  if (launchAt) {
-    const parsed = new Date(launchAt).getTime();
-    if (!isNaN(parsed) && parsed > Date.now()) return parsed;
-  }
-  const now = new Date();
-  const target = new Date(now);
-  target.setDate(now.getDate() + 1);
-  target.setHours(15, 0, 0, 0);
-  return target.getTime();
+const DEFAULT_LAUNCH_AT = "2026-08-09T15:00:00-06:00";
+
+function getLaunchTime(launchAt?: string): number {
+  const parsed = new Date(launchAt ?? DEFAULT_LAUNCH_AT).getTime();
+  return Number.isNaN(parsed) ? new Date(DEFAULT_LAUNCH_AT).getTime() : parsed;
 }
 
 export function LaunchCountdown({ launchAt }: { launchAt?: string }) {
@@ -20,12 +15,20 @@ export function LaunchCountdown({ launchAt }: { launchAt?: string }) {
 
   useEffect(() => {
     setMounted(true);
-    const target = getTomorrow3PM(launchAt);
+    const target = getLaunchTime(launchAt);
+    const initialRemaining = Math.max(0, target - Date.now());
+
+    setRemaining(initialRemaining);
+    if (initialRemaining === 0) return;
+
     const tick = () => {
-      setRemaining(Math.max(0, target - Date.now()));
+      const nextRemaining = Math.max(0, target - Date.now());
+      setRemaining(nextRemaining);
+
+      if (nextRemaining === 0) window.clearInterval(interval);
     };
-    tick();
     const interval = window.setInterval(tick, 1000);
+
     return () => window.clearInterval(interval);
   }, [launchAt]);
 
@@ -51,4 +54,3 @@ export function LaunchCountdown({ launchAt }: { launchAt?: string }) {
     </section>
   );
 }
-
