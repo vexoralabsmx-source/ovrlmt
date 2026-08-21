@@ -22,6 +22,9 @@ type AdminOrder = {
   product_name: string;
   size: string;
   quantity: number;
+  subtotal_mxn: number;
+  discount_code?: string | null;
+  discount_mxn: number;
   total_mxn: number;
   status: string;
   address_country?: string | null;
@@ -140,6 +143,7 @@ export function AdminDashboard() {
         order.customer_whatsapp,
         order.customer_company,
         order.product_name,
+        order.discount_code,
         order.address_street,
         order.address_neighborhood,
         order.postal_code,
@@ -363,10 +367,10 @@ export function AdminDashboard() {
   }
 
   function exportOrders() {
-    const headers = ["pedido", "fecha", "cliente", "compania", "email", "telefono", "producto", "talla", "cantidad", "total_mxn", "estado", "produccion", "pago", "envio", "pais", "calle", "no_exterior", "no_interior", "colonia", "codigo_postal", "ciudad", "estado_entrega", "referencia"];
+    const headers = ["pedido", "fecha", "cliente", "compania", "email", "telefono", "producto", "talla", "cantidad", "subtotal_mxn", "codigo_descuento", "descuento_mxn", "total_mxn", "estado", "produccion", "pago", "envio", "pais", "calle", "no_exterior", "no_interior", "colonia", "codigo_postal", "ciudad", "estado_entrega", "referencia"];
     const rows = orders.map((order) => [
       order.order_code, order.created_at, order.customer_name, order.customer_company || "", order.customer_email, order.customer_whatsapp, order.product_name,
-      order.size, order.quantity, order.total_mxn, order.status, order.production_status || "",
+      order.size, order.quantity, order.subtotal_mxn, order.discount_code || "SIN CÓDIGO", order.discount_mxn || 0, order.total_mxn, order.status, order.production_status || "",
       order.payment_status || "", order.shipping_status || "", order.address_country || "México", order.address_street || order.address_line || "",
       order.address_exterior_number || "", order.address_interior_number || "", order.address_neighborhood || "",
       order.postal_code || "", order.address_city, order.address_state, order.address_reference || "",
@@ -414,7 +418,10 @@ export function AdminDashboard() {
             <button key={order.id} className={selectedId === order.id ? "active" : ""} onClick={() => chooseOrder(order)}>
               <span>{order.order_code}</span>
               <strong>{order.customer_name}</strong>
-              <small>{getOrderStatusLabel(order.status)} / {money(order.total_mxn)}</small>
+              <div className="admin-order-summary">
+                <small>{getOrderStatusLabel(order.status)} / {money(order.total_mxn)}</small>
+                <span className={`admin-coupon-badge ${order.discount_code ? "used" : "none"}`}>{order.discount_code ? `CÓDIGO ${order.discount_code}` : "SIN CÓDIGO"}</span>
+              </div>
             </button>
           )) : <p className="admin-empty-state">No hay pedidos con esos filtros.</p>}
         </div>
@@ -434,6 +441,13 @@ export function AdminDashboard() {
               <span>{new Date(selected.created_at).toLocaleDateString("es-MX")}</span>
               {selected.payment_provider && <span>PAGO {selected.payment_provider.toUpperCase()} / {selected.payment_status || "PENDIENTE"}</span>}
               {selected.payment_receipt_no && <span>RECIBO {selected.payment_receipt_no}</span>}
+            </div>
+            <div className={`admin-discount-audit ${selected.discount_code ? "used" : "none"}`}>
+              <div>
+                <span>CÓDIGO DE DESCUENTO</span>
+                <strong>{selected.discount_code || "SIN CÓDIGO"}</strong>
+              </div>
+              <p>{selected.discount_code ? `Descuento aplicado: ${money(selected.discount_mxn || 0)}. Revisa este código para calcular la comisión correspondiente.` : "Este pedido se realizó sin código de descuento y no requiere comisión asociada a un cupón."}</p>
             </div>
             <div className="admin-customer-details">
               <article>

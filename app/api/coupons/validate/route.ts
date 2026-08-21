@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { validateCoupon } from "@/src/lib/coupons";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 export async function POST(request: Request) {
+  const blocked = await guardRequest(request, { bucket: "coupon-validation", limit: 30, windowMs: 60_000, maxBodyBytes: 16_384, requireJson: true });
+  if (blocked) return blocked;
   const body = await request.json().catch(() => null) as { code?: unknown; subtotalMxn?: unknown; email?: unknown } | null;
   const code = typeof body?.code === "string" ? body.code : "";
   const subtotalMxn = Number(body?.subtotalMxn);

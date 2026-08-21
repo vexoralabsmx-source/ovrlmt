@@ -13,7 +13,8 @@ const sizeRows: Array<{ size: ProductSize; chest: string; length: string; fit: s
   { size: "XG", chest: "58 cm", length: "77 cm", fit: "XL urbano" },
 ];
 
-function fomo(available: number) {
+function fomo(available: number, unlimited = false) {
+  if (unlimited) return "Stock ilimitado";
   if (available <= 0) return "Agotado";
   if (available === 1) return "Último cupo";
   if (available === 2) return "Solo quedan 2 cupos";
@@ -30,7 +31,7 @@ export function ProductPurchase({ product }: { product: Product }) {
   const selectedStock = product.stock.find((item) => item.size === size);
   const available = product.productStatus === "sold_out" ? 0 : selectedStock?.available || 0;
   const isSoldOut = available <= 0;
-  const maxQuantity = Math.max(1, available);
+  const maxQuantity = product.unlimitedStock ? 99 : Math.max(1, available);
 
   function preorder() {
     const message = `Hola, quiero preordenar OVRLMT.\n\nProducto: ${product.name}\nTalla: ${size}\nCantidad: ${quantity}`;
@@ -44,10 +45,10 @@ export function ProductPurchase({ product }: { product: Product }) {
       {SIZES.map((item) => {
         const stock = product.stock.find((row) => row.size === item);
         const sizeAvailable = product.productStatus === "sold_out" ? 0 : stock?.available || 0;
-        return <button key={item} type="button" className={size === item ? "selected" : ""} onClick={() => { setSize(item); setQuantity(1); }} aria-pressed={size === item} disabled={sizeAvailable <= 0}><span>{item}</span><small>{fomo(sizeAvailable)}</small></button>;
+        return <button key={item} type="button" className={size === item ? "selected" : ""} onClick={() => { setSize(item); setQuantity(1); }} aria-pressed={size === item} disabled={sizeAvailable <= 0}><span>{item}</span><small>{fomo(sizeAvailable, product.unlimitedStock)}</small></button>;
       })}
     </div>
-    <p className={`stock-signal ${available <= 2 ? "urgent" : ""}`}>{fomo(available)} en talla {size} <span>({SIZE_EQUIVALENCE[size]})</span></p>
+    <p className={`stock-signal ${!product.unlimitedStock && available <= 2 ? "urgent" : ""}`}>{product.unlimitedStock ? "Stock ilimitado" : `${fomo(available)} en talla ${size}`} <span>({SIZE_EQUIVALENCE[size]})</span></p>
     <div className="detail-quantity"><span>CANTIDAD</span><div className="qty-control"><button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={isSoldOut}><Minus size={12} /></button><span>{isSoldOut ? 0 : quantity}</span><button type="button" onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))} disabled={isSoldOut || quantity >= maxQuantity}><Plus size={12} /></button></div></div>
     <button className="purchase-button" type="button" onClick={() => cart.addItem(product, size, Math.min(quantity, maxQuantity))} disabled={isSoldOut}><span>{isSoldOut ? "AGOTADO" : `AGREGAR AL CARRITO — ${product.price}`}</span><span>↗</span></button>
     <button className="purchase-button secondary" type="button" onClick={preorder} disabled={isSoldOut}><span>{isSoldOut ? "AGOTADO" : "PREORDENAR POR WHATSAPP"}</span><span>↗</span></button>

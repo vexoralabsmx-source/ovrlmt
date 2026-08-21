@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { isValidClipPaymentId, syncClipOrder } from "@/src/lib/clipOrders";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const blocked = await guardRequest(request, { bucket: "clip-webhook", limit: 120, windowMs: 60_000, maxBodyBytes: 16_384 });
+  if (blocked) return blocked;
   const body = await request.json().catch(() => null) as {
     id?: unknown;
     origin?: unknown;

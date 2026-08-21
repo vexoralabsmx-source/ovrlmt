@@ -32,6 +32,12 @@ type StockRow = {
   sold: number;
 };
 
+const UNLIMITED_STOCK_SLUGS = new Set([
+  "naomi-cherry-blossom-gt3-hoodie",
+  "naomi-boxing-strike-tee",
+  "naomi-title-champion-hoodie",
+]);
+
 function money(value: number) {
   return `$${Number(value).toLocaleString("es-MX")} MXN`;
 }
@@ -54,6 +60,7 @@ function fromRows(productRows: ProductRow[], stockRows: StockRow[]): Product[] {
     const units = stock.reduce((sum, item) => sum + item.total, 0);
     const available = stock.reduce((sum, item) => sum + item.available, 0);
     const productStatus = row.status || (row.active === false ? "hidden" : available <= 0 ? "sold_out" : "active");
+    const unlimitedStock = UNLIMITED_STOCK_SLUGS.has(row.slug);
 
     return {
       ...fallback,
@@ -78,6 +85,7 @@ function fromRows(productRows: ProductRow[], stockRows: StockRow[]): Product[] {
       material: row.material || fallback.material,
       printMethod: row.print_method || fallback.printMethod,
       featured: Boolean(row.featured),
+      unlimitedStock,
       stock: stock.some((item) => item.total > 0) ? stock : fallback.stock,
     };
   });
@@ -104,21 +112,27 @@ export async function getCatalogProducts(options: { includeHidden?: boolean; fea
       .in("product_id", productIds);
 
     const dbProducts = fromRows(rows as ProductRow[], (stockRows || []) as StockRow[]);
-    return options.featuredOnly ? dbProducts.filter((item) => item.featured) : dbProducts;
+    const localDropProducts = fallbackProducts.filter((item) => item.drop.startsWith("004"));
+    const mergedProducts = [
+      ...dbProducts,
+      ...localDropProducts.filter((fallback) => !dbProducts.some((product) => product.slug === fallback.slug)),
+    ];
+    return options.featuredOnly ? mergedProducts.filter((item) => item.featured) : mergedProducts;
   } catch {
     return options.featuredOnly ? fallbackProducts.filter((item) => item.featured) : fallbackProducts;
   }
 }
 
-export function getStockSummary(product: Pick<Product, "stock" | "productStatus">) {
+export function getStockSummary(product: Pick<Product, "stock" | "productStatus" | "unlimitedStock">) {
   const total = product.stock.reduce((sum, item) => sum + item.total, 0);
   const reserved = product.stock.reduce((sum, item) => sum + item.reserved, 0);
   const sold = product.stock.reduce((sum, item) => sum + item.sold, 0);
   const available = product.productStatus === "sold_out" ? 0 : product.stock.reduce((sum, item) => sum + item.available, 0);
-  return { total, reserved, sold, available };
+  return { total, reserved, sold, available, unlimited: Boolean(product.unlimitedStock) };
 }
 
-export function getFomoLabel(available: number) {
+export function getFomoLabel(available: number, unlimited = false) {
+  if (unlimited) return "Stock ilimitado";
   if (available <= 0) return "Agotado";
   if (available === 1) return "Último cupo";
   if (available === 2) return "Solo quedan 2 cupos";

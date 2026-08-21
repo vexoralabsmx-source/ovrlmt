@@ -31,10 +31,12 @@ import {
   PRODUCT_PRICE,
   SHIPPING_COST,
   WHATSAPP_NUMBER,
+  isFreePersonalDeliveryPostalCode,
 } from "@/data/store";
 
 type Step = 1 | 2 | 3;
 type PaymentMethod = "clip" | "transfer";
+type DeliveryMethod = "personal" | "national";
 
 type CheckoutData = {
   email: string;
@@ -92,7 +94,6 @@ const steps: Array<{ id: Step; label: string; icon: typeof Mail }> = [
 ];
 
 const money = (value: number) => `$${value.toLocaleString("es-MX")} MXN`;
-const isLocalPostalCode = (postalCode: string) => /^(72|73|74)/.test(postalCode.replace(/\D/g, ""));
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 const buildAddressLine = (customer: CheckoutData) => [
   customer.street,
@@ -102,10 +103,9 @@ const buildAddressLine = (customer: CheckoutData) => [
   customer.reference ? `Ref. ${customer.reference}` : "",
 ].filter(Boolean).join(", ");
 
-function getShipping(subtotal: number, postalCode: string) {
-  const cleanPostalCode = postalCode.replace(/\D/g, "");
+function getShipping(subtotal: number, personalDelivery: boolean) {
   if (subtotal <= 0 || subtotal >= FREE_SHIPPING_MINIMUM) return 0;
-  if (cleanPostalCode.length === 5 && isLocalPostalCode(cleanPostalCode)) return 0;
+  if (personalDelivery) return 0;
   return SHIPPING_COST;
 }
 
@@ -133,6 +133,7 @@ export function CartPage() {
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutData, string>>>({});
   const [copied, setCopied] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("clip");
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("personal");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [clipReturnState, setClipReturnState] = useState<"idle" | "checking" | "pending" | "error">("idle");
@@ -144,11 +145,12 @@ export function CartPage() {
   const [zipLoading, setZipLoading] = useState(false);
 
   const cleanPostalCode = data.postalCode.replace(/\D/g, "");
-  const localDelivery = cleanPostalCode.length === 5 && isLocalPostalCode(cleanPostalCode);
+  const personalDeliveryAvailable = isFreePersonalDeliveryPostalCode(cleanPostalCode);
+  const personalDelivery = personalDeliveryAvailable && deliveryMethod === "personal";
   const discountedSubtotal = Math.max(0, cart.subtotal - discountMxn);
-  const shipping = getShipping(discountedSubtotal, cleanPostalCode);
+  const shipping = getShipping(discountedSubtotal, personalDelivery);
   const total = discountedSubtotal + shipping;
-  const shippingLabel = localDelivery
+  const shippingLabel = personalDelivery
     ? "Entrega personal gratis"
     : shipping === 0
       ? "Envío gratis"
@@ -167,10 +169,11 @@ export function CartPage() {
     try {
       const saved = localStorage.getItem(CHECKOUT_DRAFT_KEY);
       if (saved) {
-        const draft = JSON.parse(saved) as { data?: CheckoutData; step?: Step; couponCode?: string };
+        const draft = JSON.parse(saved) as { data?: CheckoutData; step?: Step; couponCode?: string; deliveryMethod?: DeliveryMethod };
         if (draft.data) setData({ ...emptyData, ...draft.data });
         if (draft.step) setStep(draft.step);
         if (draft.couponCode) setCouponCode(draft.couponCode);
+        if (draft.deliveryMethod === "personal" || draft.deliveryMethod === "national") setDeliveryMethod(draft.deliveryMethod);
       }
     } catch {
       localStorage.removeItem(CHECKOUT_DRAFT_KEY);
@@ -179,10 +182,10 @@ export function CartPage() {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      localStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify({ data, step, couponCode }));
+      localStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify({ data, step, couponCode, deliveryMethod }));
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [data, step, couponCode]);
+  }, [data, step, couponCode, deliveryMethod]);
 
   useEffect(() => {
     if (!isValidEmail(data.email) || !cart.items.length) return;
@@ -367,6 +370,7 @@ export function CartPage() {
           customer: checkoutCustomer,
           items: cart.items.map(({ slug, size, quantity }) => ({ slug, size, quantity })),
           couponCode: discountMxn > 0 ? couponCode : "",
+          deliveryMethod: personalDelivery ? "personal" : "national",
         }),
       });
       const result = await response.json() as {
@@ -419,6 +423,7 @@ export function CartPage() {
           customer: checkoutCustomer,
           items: cart.items.map(({ slug, size, quantity }) => ({ slug, size, quantity })),
           couponCode: discountMxn > 0 ? couponCode : "",
+          deliveryMethod: personalDelivery ? "personal" : "national",
         }),
       });
       const result = await response.json() as { orderCode?: string; totalMxn?: number; shippingMxn?: number; error?: string };
@@ -577,12 +582,30 @@ export function CartPage() {
                     <label><span>ESTADO *</span><input required aria-required="true" value={data.state} onChange={(event) => updateField("state", event.target.value)} autoComplete="address-level1" />{errors.state && <small>{errors.state}</small>}</label>
                     <label className="wide"><span>REFERENCIA *</span><input required aria-required="true" value={data.reference} onChange={(event) => updateField("reference", event.target.value)} placeholder="Entre calles, color de fachada o punto cercano" maxLength={25} />{errors.reference && <small>{errors.reference}</small>}</label>
                   </div>
-                  {cleanPostalCode.length === 5 && (
-                    <div className={`delivery-result ${localDelivery ? "personal" : "national"}`}>
-                      <MapPin size={20} />
+                  {cleanPostalCode.length === 5 && personalDeliveryAvailable && (
+                    <fieldset className="delivery-methods">
+                      <legend>ELIGE CÓMO QUIERES RECIBIR TU PEDIDO</legend>
+                      <div role="radiogroup" aria-label="Método de entrega">
+                        <button className={deliveryMethod === "personal" ? "active" : ""} type="button" role="radio" aria-checked={deliveryMethod === "personal"} onClick={() => setDeliveryMethod("personal")}>
+                          <MapPin size={21} />
+                          <span><b>QUIERO ENTREGA PERSONAL</b><small>Gratis · acordamos punto y horario</small></span>
+                          {deliveryMethod === "personal" && <Check size={17} />}
+                        </button>
+                        <button className={deliveryMethod === "national" ? "active" : ""} type="button" role="radio" aria-checked={deliveryMethod === "national"} onClick={() => setDeliveryMethod("national")}>
+                          <Truck size={21} />
+                          <span><b>QUIERO ENVÍO A MI CASA</b><small>{discountedSubtotal >= FREE_SHIPPING_MINIMUM ? "Gratis por el monto de tu compra" : `${money(SHIPPING_COST)} · entrega a domicilio`}</small></span>
+                          {deliveryMethod === "national" && <Check size={17} />}
+                        </button>
+                      </div>
+                      <p>{deliveryMethod === "personal" ? LOCAL_DELIVERY_COPY : "Enviaremos tu pedido a la dirección que registraste."}</p>
+                    </fieldset>
+                  )}
+                  {cleanPostalCode.length === 5 && !personalDeliveryAvailable && (
+                    <div className="delivery-result national">
+                      <Truck size={20} />
                       <div>
-                        <b>{localDelivery ? "ENTREGA PERSONAL GRATIS DISPONIBLE" : shipping === 0 ? "ENVÍO NACIONAL GRATIS" : "ENVÍO NACIONAL ESTÁNDAR ($150 MXN)"}</b>
-                        <p>{localDelivery ? LOCAL_DELIVERY_COPY : shipping === 0 ? "Tu compra supera el mínimo de envío gratis." : "Se suma la tarifa nacional estándar al total."}</p>
+                        <b>{shipping === 0 ? "ENVÍO NACIONAL GRATIS" : `ENVÍO A DOMICILIO (${money(SHIPPING_COST)})`}</b>
+                        <p>{shipping === 0 ? "Tu compra supera el mínimo de envío gratis." : "La entrega personal no está disponible en este código postal."}</p>
                       </div>
                     </div>
                   )}
@@ -675,7 +698,7 @@ export function CartPage() {
               <div><dt>Total a pagar</dt><dd>{money(total)}</dd></div>
             </dl>
             <div className="sidebar-trust-note"><ShieldCheck size={17} /><span>Pago protegido por Clip. Los datos de tu tarjeta no pasan por OVRLMT.</span></div>
-            {discountedSubtotal < FREE_SHIPPING_MINIMUM && !localDelivery && <div className="shipping-progress"><div><i style={{ width: `${Math.min(100, discountedSubtotal / FREE_SHIPPING_MINIMUM * 100)}%` }} /></div><p>Te faltan {money(FREE_SHIPPING_MINIMUM - discountedSubtotal)} para envío gratis.</p></div>}
+            {discountedSubtotal < FREE_SHIPPING_MINIMUM && !personalDelivery && <div className="shipping-progress"><div><i style={{ width: `${Math.min(100, discountedSubtotal / FREE_SHIPPING_MINIMUM * 100)}%` }} /></div><p>Te faltan {money(FREE_SHIPPING_MINIMUM - discountedSubtotal)} para envío gratis.</p></div>}
             <div className="sidebar-mini-badges">
               <span><PackageCheck size={13} /> Sobre pedido</span>
               <span><Truck size={13} /> Envío</span>

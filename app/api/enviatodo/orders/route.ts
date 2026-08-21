@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getOrders } from "@/src/lib/enviatodo";
 import { routeError } from "../_utils";
+import { requireAdminRequest } from "@/src/lib/adminApi";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAdminRequest(request);
+  if (!auth.ok) return auth.response;
   try {
     return NextResponse.json(await getOrders());
   } catch (error) {

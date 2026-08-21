@@ -27,5 +27,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es"><body suppressHydrationWarning className={`${display.variable} ${body.variable}`}><CartProvider><InitialLoader /><div className="noise" /><div className="shipping-bar"><strong>TODO ES SOBRE PEDIDO</strong><span>· PRODUCCIÓN AL CONFIRMAR TU PAGO</span><span className="shipping-bar-extra">· ENVÍO GRATIS A TODO MÉXICO DESDE ${FREE_SHIPPING_MINIMUM.toLocaleString("es-MX")} MXN · ENTREGA GRATIS EN {LOCAL_DELIVERY_AREA.toUpperCase()}</span></div><Header />{children}<Footer /></CartProvider></body></html>;
+  return <html lang="es" data-scroll-behavior="smooth"><body suppressHydrationWarning className={`${display.variable} ${body.variable}`}><CartProvider><InitialLoader /><div className="noise" /><div className="shipping-bar"><strong>TODO ES SOBRE PEDIDO</strong><span>· PRODUCCIÓN AL CONFIRMAR TU PAGO</span><span className="shipping-bar-extra">· ENVÍO GRATIS A TODO MÉXICO DESDE ${FREE_SHIPPING_MINIMUM.toLocaleString("es-MX")} MXN · ENTREGA GRATIS EN {LOCAL_DELIVERY_AREA.toUpperCase()}</span></div><Header />{children}<Footer /></CartProvider></body></html>;
 }

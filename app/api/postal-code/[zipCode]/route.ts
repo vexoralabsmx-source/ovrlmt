@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getZipCode } from "@/src/lib/enviatodo";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 function findString(value: unknown, keys: string[]): string {
   if (!value || typeof value !== "object") return "";
@@ -22,7 +23,9 @@ function findString(value: unknown, keys: string[]): string {
   return "";
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ zipCode: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ zipCode: string }> }) {
+  const blocked = await guardRequest(request, { bucket: "postal-code", limit: 40, windowMs: 60_000 });
+  if (blocked) return blocked;
   const { zipCode } = await context.params;
   const postalCode = zipCode.replace(/\D/g, "").slice(0, 5);
   if (!/^\d{5}$/.test(postalCode)) return NextResponse.json({ error: "Código postal inválido." }, { status: 400 });

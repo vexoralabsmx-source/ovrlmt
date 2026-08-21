@@ -9,11 +9,13 @@ import {
 import { getCatalogProducts } from "@/src/lib/catalog";
 import { sendAdminPreorderNotification, sendCustomerPreorderEmail } from "@/src/lib/resend";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 type TransferBody = {
   customer?: Record<string, unknown>;
   items?: Array<{ slug?: unknown; size?: unknown; quantity?: unknown }>;
   couponCode?: unknown;
+  deliveryMethod?: unknown;
 };
 
 const clean = (value: unknown, max = 160) => typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -52,6 +54,8 @@ function orderCode() {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardRequest(request, { bucket: "checkout-transfer", limit: 8, windowMs: 10 * 60_000, maxBodyBytes: 131_072, requireJson: true });
+  if (blocked) return blocked;
   const body = await request.json().catch(() => null) as TransferBody | null;
   const customer = {
     email: clean(body?.customer?.email, 180).toLowerCase(),
@@ -160,8 +164,16 @@ export async function POST(request: Request) {
   }
 
   const afterDiscount = Math.max(0, subtotalMxn - discountMxn);
-  const local = isFreePersonalDeliveryPostalCode(customer.postalCode);
-  const shippingMxn = local || afterDiscount >= FREE_SHIPPING_MINIMUM ? 0 : SHIPPING_COST;
+  const deliveryMethodInput = clean(body.deliveryMethod, 20).toLowerCase();
+  if (deliveryMethodInput && deliveryMethodInput !== "personal" && deliveryMethodInput !== "national") {
+    return NextResponse.json({ error: "El método de entrega no es válido." }, { status: 400 });
+  }
+  const personalAvailable = isFreePersonalDeliveryPostalCode(customer.postalCode);
+  if (deliveryMethodInput === "personal" && !personalAvailable) {
+    return NextResponse.json({ error: "La entrega personal no está disponible para este código postal." }, { status: 400 });
+  }
+  const personalDelivery = deliveryMethodInput === "personal" || (!deliveryMethodInput && personalAvailable);
+  const shippingMxn = personalDelivery || afterDiscount >= FREE_SHIPPING_MINIMUM ? 0 : SHIPPING_COST;
   const totalMxn = afterDiscount + shippingMxn;
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const code = orderCode();
@@ -181,7 +193,7 @@ export async function POST(request: Request) {
     discount_mxn: discountMxn,
     shipping_mxn: shippingMxn,
     total_mxn: totalMxn,
-    shipping_type: local ? "personal" : "national",
+    shipping_type: personalDelivery ? "personal" : "national",
     address_state: customer.state,
     address_city: customer.city,
     address_line: customer.address,

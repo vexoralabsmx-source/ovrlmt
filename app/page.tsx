@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { HeroScene } from "@/components/HeroScene";
 import { PageFrame } from "@/components/PageFrame";
 import { Reveal } from "@/components/Reveal";
-import { LaunchCountdown } from "@/components/LaunchCountdown";
+import { NaomiDropShowcase } from "@/components/NaomiDropShowcase";
 import { FaqSection, HowToBuy, SocialProofSection, TrustSection } from "@/components/CommerceSections";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,6 @@ export default function Home() {
 
   return (
     <PageFrame>
-      <LaunchCountdown />
       <section className="hero">
         <div className="hero-glow" />
         <HeroScene />
@@ -57,6 +56,8 @@ export default function Home() {
         </div>
         <div className="hero-number">01</div>
       </section>
+
+      <NaomiDropShowcase />
 
       <HowToBuy />
 
@@ -126,4 +127,3 @@ export default function Home() {
     </PageFrame>
   );
 }
-

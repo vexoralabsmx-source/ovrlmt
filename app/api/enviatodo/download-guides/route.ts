@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { downloadGuides } from "@/src/lib/enviatodo";
 import { badRequest, isRecord, readGuideIds, routeError } from "../_utils";
+import { requireAdminRequest } from "@/src/lib/adminApi";
 
 export async function POST(request: Request) {
+  const auth = await requireAdminRequest(request);
+  if (!auth.ok) return auth.response;
   const body = await request.json().catch(() => null);
   if (!isRecord(body)) return badRequest("Payload de descarga inválido.");
   const guides = readGuideIds(body.guides);

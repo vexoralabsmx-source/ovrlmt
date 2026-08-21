@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 export async function POST(request: Request) {
+  const blocked = await guardRequest(request, { bucket: "checkout-draft", limit: 20, windowMs: 10 * 60_000, maxBodyBytes: 65_536, requireJson: true });
+  if (blocked) return blocked;
   const body = await request.json().catch(() => null) as { email?: unknown; fullName?: unknown; items?: unknown; subtotalMxn?: unknown } | null;
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase().slice(0, 180) : "";
   const fullName = typeof body?.fullName === "string" ? body.fullName.trim().slice(0, 120) : "";

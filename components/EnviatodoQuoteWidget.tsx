@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Loader2, PackageCheck, Send, Truck } from "lucide-react";
+import { Loader2, Send, Truck } from "lucide-react";
 import { ENVIATODO_PACKAGE_PRESETS, ENVIATODO_PROVIDERS } from "@/src/lib/enviatodo/constants";
 
 type AddressForm = {
@@ -63,8 +63,6 @@ export function EnviatodoQuoteWidget() {
   const [preset, setPreset] = useState<keyof typeof ENVIATODO_PACKAGE_PRESETS>("PLAYERA");
   const [providerServiceId, setProviderServiceId] = useState("");
   const [rates, setRates] = useState<RateOption[]>([]);
-  const [selectedRate, setSelectedRate] = useState<RateOption | null>(null);
-  const [orderResult, setOrderResult] = useState<unknown>(null);
   const [loading, setLoading] = useState("");
   const [message, setMessage] = useState("");
 
@@ -89,8 +87,6 @@ export function EnviatodoQuoteWidget() {
     setLoading("rates");
     setMessage("");
     setRates([]);
-    setSelectedRate(null);
-    setOrderResult(null);
 
     try {
       const response = await fetch("/api/enviatodo/rates", {
@@ -112,38 +108,6 @@ export function EnviatodoQuoteWidget() {
       setMessage(nextRates.length ? "" : "EnviaTodo no devolvio opciones para ese trayecto.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No pudimos cotizar el envio.");
-    } finally {
-      setLoading("");
-    }
-  }
-
-  async function createGuide(rate: RateOption) {
-    if (!rate.uuid || !rate.provider_id || !rate.provider_service_id) {
-      setMessage("La cotizacion no incluye uuid/provider para crear guia.");
-      return;
-    }
-
-    setLoading(`create-${rate.uuid}`);
-    setMessage("");
-    setOrderResult(null);
-    try {
-      const response = await fetch("/api/enviatodo/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uuid: rate.uuid,
-          provider_id: String(rate.provider_id),
-          provider_service_id: String(rate.provider_service_id),
-          insurance: false,
-        }),
-      });
-      const json = await response.json();
-      if (!response.ok || json.ok === false) throw new Error(json.message || "No pudimos crear la guia.");
-      setSelectedRate(rate);
-      setOrderResult(json.data);
-      setMessage("Guia creada con EnviaTodo.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "No pudimos crear la guia.");
     } finally {
       setLoading("");
     }
@@ -231,19 +195,9 @@ export function EnviatodoQuoteWidget() {
                 <div><dt>provider_id</dt><dd>{rate.provider_id}</dd></div>
                 <div><dt>service_id</dt><dd>{rate.provider_service_id}</dd></div>
               </dl>
-              <button type="button" onClick={() => createGuide(rate)} disabled={loading === `create-${rate.uuid}`}>
-                {loading === `create-${rate.uuid}` ? <Loader2 size={15} className="spin-icon" /> : <PackageCheck size={15} />}
-                Crear guia
-              </button>
+              <small>Tarifa informativa. La guía se genera únicamente desde el panel administrativo después de validar el pago.</small>
             </article>
           ))}
-        </div>
-      ) : null}
-
-      {orderResult ? (
-        <div className="enviatodo-success">
-          <CheckCircle2 size={18} />
-          <span>{selectedRate?.provider || "EnviaTodo"} / {selectedRate?.service || selectedRate?.service_name || "Guia generada"}</span>
         </div>
       ) : null}
     </section>

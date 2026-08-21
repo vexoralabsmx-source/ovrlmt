@@ -3,6 +3,8 @@ import { FREE_SHIPPING_MINIMUM, SHIPPING_COST } from "@/data/store";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
 import { sendAdminPreorderNotification, sendCustomerPreorderEmail } from "@/src/lib/resend";
 import { generateWhatsappMessage } from "@/src/lib/whatsapp";
+import { guardRequest } from "@/src/lib/requestSecurity";
+import { getCatalogProducts } from "@/src/lib/catalog";
 
 type ErrorCode =
   | "missing_env_vars"
@@ -138,6 +140,8 @@ async function resolveCoupon(discountCode: string, subtotalMxn: number) {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardRequest(request, { bucket: "preorders", limit: 8, windowMs: 10 * 60_000, maxBodyBytes: 65_536, requireJson: true });
+  if (blocked) return blocked;
   try {
     assertEnv();
 
@@ -147,10 +151,8 @@ export async function POST(request: Request) {
     const customerWhatsapp = clean(body.customerWhatsapp, 40);
     const customerCompany = clean(body.customerCompany, 80);
     const productSlug = clean(body.productSlug, 120);
-    const productName = clean(body.productName, 160);
     const size = clean(body.size, 8).toUpperCase();
     const quantity = Math.max(1, Math.min(20, Number(body.quantity) || 0));
-    const unitPriceMxn = Math.max(0, Math.round(Number(body.unitPriceMxn) || 0));
     const discountCodeInput = clean(body.discountCode, 60).toUpperCase();
     const addressCountry = clean(body.addressCountry, 60) || "México";
     const addressStreet = clean(body.addressStreet, 120);
@@ -176,10 +178,9 @@ export async function POST(request: Request) {
     if (!EMAIL_RE.test(customerEmail)) throw new PreorderError("invalid_payload", "Escribe un correo electrónico válido.");
     if (!customerWhatsapp) throw new PreorderError("invalid_payload", "Agrega tu WhatsApp para poder dar seguimiento.");
     if (customerWhatsapp.replace(/\D/g, "").length < 10) throw new PreorderError("invalid_payload", "Agrega un teléfono válido.");
-    if (!productSlug || !productName) throw new PreorderError("invalid_payload", "Selecciona un producto.");
+    if (!productSlug) throw new PreorderError("invalid_payload", "Selecciona un producto.");
     if (!VALID_SIZES.has(size)) throw new PreorderError("invalid_payload", "Selecciona una talla.");
     if (!quantity) throw new PreorderError("invalid_payload", "Selecciona una cantidad válida.");
-    if (!unitPriceMxn) throw new PreorderError("invalid_payload", "No pudimos validar el precio.");
     if (!addressCountry) throw new PreorderError("invalid_payload", "Agrega tu país.");
     if (addressStreet.length < 3) throw new PreorderError("invalid_payload", "Agrega tu calle.");
     if (!addressExteriorNumber) throw new PreorderError("invalid_payload", "Agrega tu número exterior.");
@@ -188,6 +189,16 @@ export async function POST(request: Request) {
     if (!addressState) throw new PreorderError("invalid_payload", "Agrega tu estado.");
     if (!/^\d{5}$/.test(postalCode)) throw new PreorderError("invalid_payload", "Agrega un código postal válido.");
     if (addressReference.length < 4) throw new PreorderError("invalid_payload", "Agrega una referencia de entrega.");
+
+    const catalog = await getCatalogProducts();
+    const product = catalog.find((item) => item.slug === productSlug);
+    if (!product || product.productStatus !== "active") throw new PreorderError("invalid_payload", "Ese producto no está disponible.");
+    const sizeStock = product.stock.find((item) => item.size === size);
+    if (!product.unlimitedStock && (!sizeStock || sizeStock.available < quantity)) {
+      throw new PreorderError("invalid_payload", "No hay suficiente disponibilidad en esa talla.");
+    }
+    const productName = `${product.name} ${product.piece}`;
+    const unitPriceMxn = product.priceMxn;
 
     const subtotalMxn = quantity * unitPriceMxn;
     const coupon = await resolveCoupon(discountCodeInput, subtotalMxn);

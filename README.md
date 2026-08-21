@@ -19,6 +19,7 @@ Crea `.env.local` con:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SITE_URL=https://ovrlmt.xyz
 RESEND_API_KEY=
 RESEND_FROM_EMAIL="OVRLMT <contacto@ovrlmt.xyz>"
 ADMIN_NOTIFICATION_EMAIL=contacto@ovrlmt.xyz
@@ -33,6 +34,7 @@ ADMIN_NOTIFICATION_EMAIL=contacto@ovrlmt.xyz
 3. Copia `SUPABASE_SERVICE_ROLE_KEY` solo para las API routes de Next.js.
 4. Abre SQL Editor en Supabase.
 5. Pega y ejecuta `supabase/schema.sql`.
+6. En Authentication > URL Configuration, agrega `https://ovrlmt.xyz/recuperar-contrasena` a Redirect URLs. Para probar localmente, agrega también `http://localhost:3000/recuperar-contrasena`.
 
 El SQL crea:
 

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { isAdminEmail } from "@/src/lib/authServer";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 export async function POST(request: Request) {
-  const body = await request.json() as { email?: string; password?: string };
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  const password = typeof body.password === "string" ? body.password : "";
+  const blocked = await guardRequest(request, { bucket: "auth-login", limit: 10, windowMs: 15 * 60_000, maxBodyBytes: 16_384, requireJson: true });
+  if (blocked) return blocked;
+  const body = await request.json().catch(() => null) as { email?: string; password?: string } | null;
+  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body?.password === "string" ? body.password : "";
 
   if (!email || !password) {
     return NextResponse.json({ ok: false, message: "Escribe correo y contrasena." }, { status: 400 });

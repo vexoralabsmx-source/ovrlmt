@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createOrder, type EnviatodoCreateOrderRequest } from "@/src/lib/enviatodo";
 import { badRequest, cleanString, isRecord, routeError } from "../_utils";
+import { requireAdminRequest } from "@/src/lib/adminApi";
 
 export async function POST(request: Request) {
+  const auth = await requireAdminRequest(request);
+  if (!auth.ok) return auth.response;
   const body = await request.json().catch(() => null);
   if (!isRecord(body)) return badRequest("Payload de orden inválido.");
 

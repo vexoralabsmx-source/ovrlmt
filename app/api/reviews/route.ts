@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 export async function GET(request: Request) {
+  const blocked = await guardRequest(request, { bucket: "public-reviews", limit: 120, windowMs: 60_000 });
+  if (blocked) return blocked;
   const product = new URL(request.url).searchParams.get("product")?.trim().slice(0, 100);
   const supabase = getSupabaseAdmin();
   let query = supabase

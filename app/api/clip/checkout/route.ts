@@ -4,6 +4,7 @@ import { createClipCheckout, ClipApiError } from "@/src/lib/clip";
 import { getCatalogProducts } from "@/src/lib/catalog";
 import { validateCoupon } from "@/src/lib/coupons";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,7 @@ type CheckoutBody = {
   };
   items?: Array<{ slug?: unknown; size?: unknown; quantity?: unknown }>;
   couponCode?: unknown;
+  deliveryMethod?: unknown;
 };
 
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -69,6 +71,8 @@ function resolveBaseUrl(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardRequest(request, { bucket: "checkout-clip", limit: 8, windowMs: 10 * 60_000, maxBodyBytes: 131_072, requireJson: true });
+  if (blocked) return blocked;
   let body: CheckoutBody;
   try {
     body = await request.json() as CheckoutBody;
@@ -170,8 +174,16 @@ export async function POST(request: Request) {
     }
   }
   const afterDiscount = Math.max(0, subtotalMxn - (coupon?.discountMxn || 0));
-  const localDelivery = isFreePersonalDeliveryPostalCode(customer.postalCode);
-  const shippingMxn = localDelivery || afterDiscount >= FREE_SHIPPING_MINIMUM ? 0 : SHIPPING_COST;
+  const deliveryMethodInput = cleanText(body.deliveryMethod, 20).toLowerCase();
+  if (deliveryMethodInput && deliveryMethodInput !== "personal" && deliveryMethodInput !== "national") {
+    return NextResponse.json({ error: "El método de entrega no es válido." }, { status: 400 });
+  }
+  const personalAvailable = isFreePersonalDeliveryPostalCode(customer.postalCode);
+  if (deliveryMethodInput === "personal" && !personalAvailable) {
+    return NextResponse.json({ error: "La entrega personal no está disponible para este código postal." }, { status: 400 });
+  }
+  const personalDelivery = deliveryMethodInput === "personal" || (!deliveryMethodInput && personalAvailable);
+  const shippingMxn = personalDelivery || afterDiscount >= FREE_SHIPPING_MINIMUM ? 0 : SHIPPING_COST;
   const totalMxn = afterDiscount + shippingMxn;
   const quantity = validatedItems.reduce((sum, item) => sum + item.quantity, 0);
   const orderCode = createOrderCode();
@@ -195,7 +207,7 @@ export async function POST(request: Request) {
     discount_mxn: coupon?.discountMxn || 0,
     shipping_mxn: shippingMxn,
     total_mxn: totalMxn,
-    shipping_type: localDelivery ? "personal" : "national",
+    shipping_type: personalDelivery ? "personal" : "national",
     address_state: customer.state,
     address_city: customer.city,
     address_line: customer.address,

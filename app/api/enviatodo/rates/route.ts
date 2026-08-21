@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRates, type EnviatodoQuoteRequest } from "@/src/lib/enviatodo";
 import { badRequest, cleanString, isRecord, routeError } from "../_utils";
+import { guardRequest } from "@/src/lib/requestSecurity";
 
 export async function POST(request: Request) {
+  const blocked = await guardRequest(request, { bucket: "shipping-rates", limit: 15, windowMs: 60_000, maxBodyBytes: 32_768, requireJson: true });
+  if (blocked) return blocked;
   const body = await request.json().catch(() => null);
   if (!isRecord(body)) return badRequest("Payload de cotización inválido.");
   if (!isRecord(body.origin)) return badRequest("origin es requerido.");

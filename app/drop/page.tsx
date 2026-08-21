@@ -4,18 +4,17 @@ import { Reveal } from "@/components/Reveal";
 import Link from "next/link";
 import { FaqSection, HowToBuy, SocialProofSection, TrustSection } from "@/components/CommerceSections";
 import { getCatalogProducts, getStockSummary } from "@/src/lib/catalog";
-import { LaunchCountdown } from "@/components/LaunchCountdown";
 
 export const metadata = { title: "Store & Drops — OVRLMT" };
 export const dynamic = "force-dynamic";
 
 export default async function Drop() {
   const products = await getCatalogProducts();
-  const totalAvailable = products.reduce((sum, product) => sum + getStockSummary(product).available, 0);
+  const totalAvailable = products.filter((product) => !product.unlimitedStock).reduce((sum, product) => sum + getStockSummary(product).available, 0);
+  const hasUnlimitedDrop = products.some((product) => product.unlimitedStock);
 
   return (
     <PageFrame>
-      <LaunchCountdown />
       <section className="page-hero drop-hero">
         <div className="page-index">STORE</div>
         <p className="eyebrow">MADE TO ORDER / PUEBLA MX</p>
@@ -34,7 +33,7 @@ export default async function Drop() {
 
       <section className="drop-list section-pad">
         <div className="section-head">
-          <p className="section-label">STORE / {totalAvailable} CUPOS DISPONIBLES</p>
+          <p className="section-label">STORE / {hasUnlimitedDrop ? "DROP 004 CON STOCK ILIMITADO" : `${totalAvailable} CUPOS DISPONIBLES`}</p>
           <p>
             CATÁLOGO GENERAL
             <br />
@@ -85,5 +84,3 @@ export default async function Drop() {
     </PageFrame>
   );
 }
-
-
