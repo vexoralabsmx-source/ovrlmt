@@ -5,6 +5,7 @@ import { HeroScene } from "@/components/HeroScene";
 import { PageFrame } from "@/components/PageFrame";
 import { Reveal } from "@/components/Reveal";
 import { NaomiDropShowcase } from "@/components/NaomiDropShowcase";
+import { NextDropTeaser } from "@/components/NextDropTeaser";
 import { FaqSection, HowToBuy, SocialProofSection, TrustSection } from "@/components/CommerceSections";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +59,8 @@ export default function Home() {
       </section>
 
       <NaomiDropShowcase />
+
+      <NextDropTeaser />
 
       <HowToBuy />
 

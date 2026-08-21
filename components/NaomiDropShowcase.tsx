@@ -81,15 +81,15 @@ export function NaomiDropShowcase() {
       <header className="naomi-drop-head">
         <motion.div className="naomi-drop-meta" {...enter(0.05, -28, 0)}>
           <p className="section-label">DROP 004 / COLLABORATION FILE</p>
-          <span className="naomi-live"><i /> PREVENTA ABIERTA</span>
+          <span className="naomi-live"><i /> VENTA OFICIAL</span>
         </motion.div>
         <motion.h2 id="naomi-drop-title" {...enter(0.12, 0, 44)}>NAYIOMI.KO<br /><em>× OVRLMT</em></motion.h2>
         <motion.div className="naomi-drop-copy" {...enter(0.2, 28, 0)}>
           <p>Tres piezas construidas entre boxeo, velocidad y flor de cerezo. Negro lavado, gráficos de alto contraste y producción sobre pedido.</p>
           <div className="naomi-release">
-            <span>VENTA OFICIAL</span>
-            <strong>13 / 08 / 2026</strong>
-            <small>PREVENTA DISPONIBLE AHORA</small>
+            <span>YA DISPONIBLE</span>
+            <strong>VENTA OFICIAL</strong>
+            <small>COMPRA ABIERTA / PRODUCCIÓN SOBRE PEDIDO</small>
           </div>
         </motion.div>
       </header>
@@ -105,7 +105,7 @@ export function NaomiDropShowcase() {
         <span>PLAYERAS / $359 MXN</span>
         <span>SUDADERAS / $459 MXN</span>
         <span>STOCK ILIMITADO</span>
-        <span>VENTA / 13.08.2026</span>
+        <span>VENTA OFICIAL / ONLINE</span>
         <Link href="/drop">VER DROP COMPLETO <ArrowUpRight aria-hidden="true" size={16} /></Link>
       </motion.footer>
     </motion.section>

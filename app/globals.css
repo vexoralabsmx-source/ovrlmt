@@ -930,3 +930,67 @@ em { font-style:normal; color:transparent; -webkit-text-stroke:1px var(--steel);
   .naomi-marquee-group[aria-hidden="true"] { display:none; }
   .naomi-piece { scroll-snap-align:center; }
 }
+
+/* Drop 005 — classified line study */
+.next-drop { position:relative; min-height:900px; padding:126px 5vw 72px; overflow:hidden; isolation:isolate; border-top:1px solid #ffffff14; background:radial-gradient(circle at 50% 56%,#1b1b1b 0,transparent 36%),linear-gradient(180deg,#050505,#0a0a0a 52%,#050505); }
+.next-drop:before { content:"UNRELEASED"; position:absolute; z-index:-2; top:34%; left:50%; color:#ffffff05; font:800 clamp(95px,17vw,280px)/.72 var(--font-display); letter-spacing:-.08em; white-space:nowrap; transform:translate(-50%,-50%); pointer-events:none; }
+.next-drop-grid { position:absolute; z-index:-3; inset:0; opacity:.32; background-image:linear-gradient(#ffffff0a 1px,transparent 1px),linear-gradient(90deg,#ffffff0a 1px,transparent 1px); background-size:64px 64px; mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent); }
+.next-drop-head { width:min(1460px,100%); margin:0 auto 60px; display:grid; grid-template-columns:.55fr 1.35fr .6fr; gap:4vw; align-items:end; }
+.next-drop-meta { align-self:start; display:grid; justify-items:start; gap:22px; }
+.next-drop-signal { min-height:34px; padding:0 12px; display:inline-flex; align-items:center; gap:9px; border:1px solid #ffffff29; background:#ffffff08; color:#d5d5d2; font-size:8px; font-weight:800; letter-spacing:.18em; }
+.next-drop-signal i { width:28px; height:1px; background:#ededeb; box-shadow:0 0 12px #fff; animation:next-drop-signal 1.8s ease-in-out infinite; }
+.next-drop-head h2 { margin:0; font:650 clamp(62px,8.4vw,142px)/.76 var(--font-display); letter-spacing:-.075em; }
+.next-drop-head h2 em { color:transparent; -webkit-text-stroke:1px #d8d8d4; }
+.next-drop-copy { align-self:end; }
+.next-drop-copy p { max-width:380px; margin:0; color:#aaa; font-size:12px; line-height:1.8; }
+.next-drop-copy span { display:block; margin-top:26px; padding-top:16px; border-top:1px solid #ffffff24; color:#e7e7e3; font-size:8px; font-weight:800; letter-spacing:.16em; }
+.next-drop-art { position:relative; width:min(1460px,100%); min-height:520px; margin:0 auto; overflow:hidden; border:1px solid #ffffff1c; background:radial-gradient(circle at center,#171717 0,#090909 42%,#050505 76%); box-shadow:inset 0 0 100px #000,0 34px 100px #0008; }
+.next-drop-art:before,.next-drop-art:after { content:""; position:absolute; z-index:2; pointer-events:none; }
+.next-drop-art:before { inset:0; background:linear-gradient(90deg,#050505d9,transparent 20%,transparent 80%,#050505d9),repeating-linear-gradient(0deg,transparent 0 4px,#ffffff08 5px); }
+.next-drop-art:after { width:42%; height:1px; top:50%; left:29%; background:linear-gradient(90deg,transparent,#ffffff34,transparent); box-shadow:0 0 20px #fff3; }
+.next-drop-art svg { position:absolute; z-index:1; inset:0; width:100%; height:100%; }
+.next-drop-lines { fill:none; stroke:url(#next-drop-stroke); stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 0 7px #ffffff38); }
+.next-drop-lines use { opacity:0; animation:next-drop-draw .8s .2s cubic-bezier(.22,1,.36,1) forwards; }
+.next-drop-spine { stroke-width:1.1; opacity:.75; }
+.next-drop-core { fill:#ffffff05; stroke-width:1.7; }
+.next-drop-ghost { fill:none; stroke:#ffffff0d; stroke-width:8; filter:blur(7px); }
+.next-drop-ticks { fill:none; stroke:#ffffff3b; stroke-width:1; }
+.next-drop-scan { position:absolute; z-index:3; top:0; bottom:0; left:50%; width:1px; background:linear-gradient(transparent,#fff 42%,#fff 58%,transparent); box-shadow:0 0 18px #fff8; opacity:.42; animation:next-drop-scan 4.8s ease-in-out infinite; }
+.next-drop-coordinate { position:absolute; z-index:4; left:24px; color:#777; font:700 7px/1 var(--font-display); letter-spacing:.16em; }
+.next-drop-coordinate.top { top:22px; }.next-drop-coordinate.bottom { bottom:22px; }
+.next-drop-file-number { position:absolute; z-index:4; top:50%; left:50%; width:116px; aspect-ratio:1; display:grid; place-content:center; justify-items:center; border:1px solid #ffffff26; border-radius:50%; background:#070707e8; box-shadow:0 0 0 9px #050505b3,0 0 0 10px #ffffff12,0 0 60px #fff1; transform:translate(-50%,-50%); }
+.next-drop-file-number span,.next-drop-file-number small { color:#777; font-size:7px; font-weight:800; letter-spacing:.2em; }
+.next-drop-file-number strong { margin:5px 0 3px; font:650 34px/1 var(--font-display); letter-spacing:-.04em; }
+.next-drop-foot { width:min(1460px,100%); min-height:74px; margin:0 auto; display:grid; grid-template-columns:repeat(3,1fr) auto; align-items:center; gap:24px; border-bottom:1px solid #ffffff18; }
+.next-drop-foot span { color:#777; font-size:8px; font-weight:700; letter-spacing:.14em; }
+.next-drop-foot strong { color:#eee; font-size:9px; letter-spacing:.18em; }
+@keyframes next-drop-draw { from { opacity:0; } to { opacity:1; } }
+@keyframes next-drop-scan { 0%,100% { opacity:.18; transform:translateX(-180px); } 50% { opacity:.52; transform:translateX(180px); } }
+@keyframes next-drop-signal { 0%,100% { opacity:.35; transform:scaleX(.5); transform-origin:left; } 50% { opacity:1; transform:scaleX(1); transform-origin:left; } }
+
+@media (max-width:900px) {
+  .next-drop { min-height:0; padding:92px 20px 54px; }
+  .next-drop-head { margin-bottom:42px; grid-template-columns:1fr; gap:28px; }
+  .next-drop-meta { display:flex; align-items:center; justify-content:space-between; }
+  .next-drop-head h2 { font-size:clamp(58px,16vw,104px); }
+  .next-drop-copy p { max-width:600px; }
+  .next-drop-art { min-height:430px; }
+  .next-drop-foot { padding:30px 0; grid-template-columns:1fr 1fr; }
+  .next-drop-foot strong { text-align:right; }
+}
+
+@media (max-width:500px) {
+  .next-drop-meta { align-items:flex-start; flex-direction:column; }
+  .next-drop-head h2 { font-size:17vw; }
+  .next-drop-art { min-height:390px; }
+  .next-drop-art svg { width:150%; max-width:none; left:-25%; }
+  .next-drop-file-number { width:96px; }
+  .next-drop-coordinate { left:15px; }
+  .next-drop-foot { grid-template-columns:1fr; gap:16px; }
+  .next-drop-foot strong { padding-top:18px; border-top:1px solid #ffffff18; text-align:left; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .next-drop-lines use { opacity:1; animation:none; }
+  .next-drop-scan,.next-drop-signal i { animation:none; }
+}
