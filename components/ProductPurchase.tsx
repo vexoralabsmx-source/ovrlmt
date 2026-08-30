@@ -33,8 +33,8 @@ export function ProductPurchase({ product }: { product: Product }) {
   const isSoldOut = available <= 0;
   const maxQuantity = product.unlimitedStock ? 99 : Math.max(1, available);
 
-  function preorder() {
-    const message = `Hola, quiero preordenar OVRLMT.\n\nProducto: ${product.name}\nTalla: ${size}\nCantidad: ${quantity}`;
+  function buyOnWhatsApp() {
+    const message = `Hola, quiero comprar OVRLMT.\n\nProducto: ${product.name}\nTalla: ${size}\nCantidad: ${quantity}`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   }
 
@@ -50,15 +50,15 @@ export function ProductPurchase({ product }: { product: Product }) {
     </div>
     <p className={`stock-signal ${!product.unlimitedStock && available <= 2 ? "urgent" : ""}`}>{product.unlimitedStock ? "Stock ilimitado" : `${fomo(available)} en talla ${size}`} <span>({SIZE_EQUIVALENCE[size]})</span></p>
     <div className="detail-quantity"><span>CANTIDAD</span><div className="qty-control"><button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={isSoldOut}><Minus size={12} /></button><span>{isSoldOut ? 0 : quantity}</span><button type="button" onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))} disabled={isSoldOut || quantity >= maxQuantity}><Plus size={12} /></button></div></div>
-    <button className="purchase-button" type="button" onClick={() => cart.addItem(product, size, Math.min(quantity, maxQuantity))} disabled={isSoldOut}><span>{isSoldOut ? "AGOTADO" : `AGREGAR AL CARRITO — ${product.price}`}</span><span>↗</span></button>
-    <button className="purchase-button secondary" type="button" onClick={preorder} disabled={isSoldOut}><span>{isSoldOut ? "AGOTADO" : "PREORDENAR POR WHATSAPP"}</span><span>↗</span></button>
-    <p className="purchase-note">Todo es sobre pedido. Tu pieza entra a producción después de confirmar el pago y validar el comprobante.</p>
+    <button className="purchase-button" type="button" onClick={() => cart.addItem(product, size, Math.min(quantity, maxQuantity))} disabled={isSoldOut}><span>{isSoldOut ? "AGOTADO" : product.unlimitedStock ? `COMPRAR — ${product.price}` : `AGREGAR AL CARRITO — ${product.price}`}</span><span>↗</span></button>
+    <button className="purchase-button secondary" type="button" onClick={buyOnWhatsApp} disabled={isSoldOut}><span>{isSoldOut ? "AGOTADO" : product.unlimitedStock ? "COMPRAR POR WHATSAPP" : "PEDIR POR WHATSAPP"}</span><span>↗</span></button>
+    <p className="purchase-note">{product.unlimitedStock ? "Compra abierta." : "Todo es sobre pedido."} Tu pieza entra a producción después de confirmar el pago.</p>
     {guideOpen && <div className="size-modal-layer" role="dialog" aria-modal="true" aria-label="Guía de tallas">
       <button className="size-modal-backdrop" type="button" onClick={() => setGuideOpen(false)} aria-label="Cerrar guía" />
       <div className="size-modal">
         <header><div><span>FIT SYSTEM / OVRLMT</span><h2>Guía de tallas.</h2></div><button type="button" onClick={() => setGuideOpen(false)} aria-label="Cerrar"><X size={18} /></button></header>
         <table><thead><tr><th>Talla</th><th>Equiv.</th><th>Axila a axila</th><th>Largo</th><th>Fit</th></tr></thead><tbody>{sizeRows.map((row) => <tr key={row.size}><td>{row.size}</td><td>{SIZE_EQUIVALENCE[row.size]}</td><td>{row.chest}</td><td>{row.length}</td><td>{row.fit}</td></tr>)}</tbody></table>
-        <p>Mide una playera que te quede bien y compárala con esta tabla. No hay cambios por error de talla en preorder.</p>
+        <p>Mide una playera que te quede bien y compárala con esta tabla. No hay cambios por error de talla después de confirmar la compra.</p>
       </div>
     </div>}
   </div>;

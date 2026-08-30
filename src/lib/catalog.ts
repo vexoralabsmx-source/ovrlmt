@@ -38,6 +38,10 @@ const UNLIMITED_STOCK_SLUGS = new Set([
   "naomi-title-champion-hoodie",
 ]);
 
+export function isUnlimitedStockProductSlug(slug: string) {
+  return UNLIMITED_STOCK_SLUGS.has(slug);
+}
+
 function money(value: number) {
   return `$${Number(value).toLocaleString("es-MX")} MXN`;
 }
@@ -59,8 +63,10 @@ function fromRows(productRows: ProductRow[], stockRows: StockRow[]): Product[] {
     const stock = normalizeStock(stockRows.filter((item) => item.product_id === row.id));
     const units = stock.reduce((sum, item) => sum + item.total, 0);
     const available = stock.reduce((sum, item) => sum + item.available, 0);
-    const productStatus = row.status || (row.active === false ? "hidden" : available <= 0 ? "sold_out" : "active");
-    const unlimitedStock = UNLIMITED_STOCK_SLUGS.has(row.slug);
+    const unlimitedStock = isUnlimitedStockProductSlug(row.slug);
+    const productStatus = unlimitedStock
+      ? "active"
+      : row.status || (row.active === false ? "hidden" : available <= 0 ? "sold_out" : "active");
 
     return {
       ...fallback,
@@ -73,7 +79,7 @@ function fromRows(productRows: ProductRow[], stockRows: StockRow[]): Product[] {
       color: row.color || fallback.color,
       fit: row.fit || fallback.fit,
       details: row.description || fallback.details,
-      status: productStatus === "sold_out" ? "COMING SOON" : "PREORDER",
+      status: productStatus === "sold_out" ? "COMING SOON" : unlimitedStock ? "BUY" : "PREORDER",
       productStatus,
       code: row.code || fallback.code,
       accent: row.accent || fallback.accent,
@@ -86,7 +92,7 @@ function fromRows(productRows: ProductRow[], stockRows: StockRow[]): Product[] {
       printMethod: row.print_method || fallback.printMethod,
       featured: Boolean(row.featured),
       unlimitedStock,
-      stock: stock.some((item) => item.total > 0) ? stock : fallback.stock,
+      stock: unlimitedStock ? fallback.stock : stock.some((item) => item.total > 0) ? stock : fallback.stock,
     };
   });
 }

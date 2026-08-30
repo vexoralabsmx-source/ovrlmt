@@ -11,7 +11,7 @@ export function TrustSection() {
     [PackageCheck, "Producción sobre pedido"], [CheckCircle2, "Pago y orden verificados"],
     [Instagram, "Atención directa por Instagram"], [Truck, "Envío nacional y entrega local"],
   ] as const;
-  return <section className="trust-section section-pad"><div className="commerce-heading"><div><p className="section-label">SECURE ORDER / 006</p><h2>COMPRA SEGURA</h2></div><p>Preventa clara, atención directa y seguimiento hasta confirmar tu pieza.</p></div><div className="trust-grid">{items.map(([Icon, label]) => <article key={label}><Icon size={22} strokeWidth={1.4} /><p>{label}</p></article>)}</div></section>;
+  return <section className="trust-section section-pad"><div className="commerce-heading"><div><p className="section-label">SECURE ORDER / 006</p><h2>COMPRA SEGURA</h2></div><p>Compra clara, atención directa y seguimiento hasta confirmar tu pieza.</p></div><div className="trust-grid">{items.map(([Icon, label]) => <article key={label}><Icon size={22} strokeWidth={1.4} /><p>{label}</p></article>)}</div></section>;
 }
 
 export function SocialProofSection() {
@@ -28,7 +28,7 @@ export function FaqSection() {
     ["¿Puedo cambiar talla?", "Puedes solicitarlo desde Mi cuenta. Se revisará según la etapa de producción y disponibilidad de la nueva talla."],
     ["¿Cómo funcionan las reseñas?", "Después de recibir una compra verificada puedes publicar desde Mi cuenta. Tu nombre es opcional: si lo dejas vacío aparecerá como Anónimo."],
     ["¿Qué pasa si hay defecto de producción?", "Se revisa por WhatsApp con fotos dentro de las primeras 48 horas después de recibir la pieza."],
-    ["¿Puedo cancelar mi preorden?", "Una vez confirmado el pago, la preorden entra a producción/apartado y no se cancela salvo un caso acordado directamente con OVRLMT."],
+    ["¿Puedo cancelar mi pedido?", "Una vez confirmado el pago, el pedido entra a producción y no se cancela salvo un caso acordado directamente con OVRLMT."],
   ];
   return <section className="faq-section section-pad"><div className="commerce-heading"><div><p className="section-label">FAQ / 008</p><h2>PREGUNTAS<br />FRECUENTES</h2></div><p>Información directa para comprar sin dudas antes de pagar.</p></div><div className="faq-list">{items.map(([question, answer], index) => <article key={question}><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{question}</h3><p>{answer}</p></div></article>)}</div></section>;
 }

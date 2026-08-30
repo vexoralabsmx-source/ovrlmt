@@ -23,7 +23,7 @@ export default function Home() {
         </div>
         <div className="hero-content">
           <p className="eyebrow">
-            STREETWEAR SYSTEM / DROPS 002 &amp; 003 <i />
+            STREETWEAR SYSTEM / DROP 004 <i />
           </p>
           <div className="hero-logo-wrap">
             <Image
@@ -46,8 +46,8 @@ export default function Home() {
             <Link className="btn primary" href="/drop">
               VER DROPS <ArrowUpRight size={16} />
             </Link>
-            <Link className="btn ghost" href="/contact">
-              PREORDENAR AHORA
+            <Link className="btn ghost" href="/drop">
+              COMPRAR AHORA
             </Link>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function Home() {
             </p>
           </Reveal>
           <Reveal delay={0.1}>
-            <span>LIMITS ARE FICTION — DROPS 002 &amp; 003</span>
+            <span>LIMITS ARE FICTION — DROP 004</span>
           </Reveal>
         </div>
         <div className="speed-line" />
@@ -111,16 +111,16 @@ export default function Home() {
 
       <section className="home-cta">
         <div className="cta-road" />
-        <p>DROPS 002 &amp; 003 / PREORDER OPEN</p>
+        <p>DROP 004 / NAYIOMI.KO × OVRLMT</p>
         <Reveal>
           <h2>
-            DROPS 002 &amp; 003
+            NAYIOMI.KO × OVRLMT
             <br />
-            <em>PREORDER OPEN.</em>
+            <em>COMPRA ABIERTA.</em>
           </h2>
         </Reveal>
-        <Link className="btn primary jumbo" href="/contact">
-          PREORDENAR AHORA <ArrowUpRight />
+        <Link className="btn primary jumbo" href="/drop">
+          COMPRAR AHORA <ArrowUpRight />
         </Link>
         <span className="cta-meta">PRODUCCIÓN SOBRE PEDIDO / DROP 001 AGOTADO</span>
       </section>

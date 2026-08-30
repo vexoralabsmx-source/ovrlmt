@@ -429,7 +429,7 @@ export function CartPage() {
       const result = await response.json() as { orderCode?: string; totalMxn?: number; shippingMxn?: number; error?: string };
       if (!response.ok || !result.orderCode) throw new Error(result.error || "No pudimos registrar tu transferencia.");
       const finalTotal = Number(result.totalMxn ?? total);
-      const message = `Hola, quiero confirmar mi preorden ${result.orderCode}. Cliente: ${data.fullName}. Prendas: ${itemSummary}. Total: ${money(finalTotal)}. Adjunto mi comprobante.`;
+      const message = `Hola, quiero confirmar mi compra ${result.orderCode}. Cliente: ${data.fullName}. Prendas: ${itemSummary}. Total: ${money(finalTotal)}. Adjunto mi comprobante.`;
       setSuccessOrder({
         code: result.orderCode,
         total: finalTotal,
@@ -461,7 +461,7 @@ export function CartPage() {
         <p>
           {paidWithClip
             ? <>Clip confirmó tu pago. Tu orden <b>{successOrder.code}</b> entra al flujo de producción sobre pedido.</>
-            : <>Tu preorden quedó registrada. Transfiere el monto exacto y envía el comprobante para activar el seguimiento.</>}
+            : <>Tu compra quedó registrada. Transfiere el monto exacto y envía el comprobante para activar el seguimiento.</>}
         </p>
         <div className="success-order-card">
           <div><span>MONTO FINAL</span><strong>{money(successOrder.total)}</strong></div>

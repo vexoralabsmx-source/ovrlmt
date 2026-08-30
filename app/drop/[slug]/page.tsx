@@ -38,7 +38,7 @@ export default async function ProductPage({ params }: Props) {
       <div className="product-detail">
         <section className="product-gallery"><div className="product-detail-image"><Image src={product.image} alt={`${product.name}, pieza ${product.piece} de OVRLMT`} fill priority unoptimized={usesOptimizedLocalAsset} sizes="(max-width: 900px) 100vw, 58vw" /></div><div className="product-gallery-rail"><div><Image src={product.image} alt={`Detalle frontal de ${product.name}`} fill unoptimized={usesOptimizedLocalAsset} sizes="240px" /></div><div><Image src={product.image} alt={`Detalle de impresión de ${product.name}`} fill unoptimized={usesOptimizedLocalAsset} sizes="240px" /></div></div></section>
         <section className="product-detail-info">
-          <p className="product-status"><i /> {product.unlimitedStock ? "PREVENTA / VENTA OFICIAL 13.08.2026" : "SOBRE PEDIDO"} / {getFomoLabel(stockSummary.available, stockSummary.unlimited)}</p>
+          <p className="product-status"><i /> {product.unlimitedStock ? "VENTA OFICIAL / COMPRA ABIERTA" : "SOBRE PEDIDO"} / {getFomoLabel(stockSummary.available, stockSummary.unlimited)}</p>
           <p className="piece-number">PIEZA {product.piece}</p><h1>{product.name}</h1>
           <p className="product-price">{product.price}</p>
           <p className="product-description">{product.details}</p>
@@ -48,7 +48,7 @@ export default async function ProductPage({ params }: Props) {
             <article><span>FIT</span><p>Corte premium regular. Si prefieres usarla más amplia, considera una talla arriba.</p></article>
             <article><span>TALLAS</span><p>CH, M, G y XL. Revisa la guía de tallas antes de confirmar tu pago.</p></article>
             <article><span>SOBRE PEDIDO</span><p>Tu pieza entra a producción al validar el pago y el comprobante por WhatsApp.</p></article>
-            <article><span>CAMBIOS</span><p>No hay cambios por error de talla después de confirmar preorden. Sí se revisan defectos de producción.</p></article>
+            <article><span>CAMBIOS</span><p>No hay cambios por error de talla después de confirmar la compra. Sí se revisan defectos de producción.</p></article>
           </div>
           <ProductPurchase product={product} />
         </section>

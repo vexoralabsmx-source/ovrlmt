@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { SIZES, FREE_SHIPPING_MINIMUM, SHIPPING_COST, isFreePersonalDeliveryPostalCode, type ProductSize } from "@/data/store";
 import { createClipCheckout, ClipApiError } from "@/src/lib/clip";
-import { getCatalogProducts } from "@/src/lib/catalog";
+import { getCatalogProducts, isUnlimitedStockProductSlug } from "@/src/lib/catalog";
 import { validateCoupon } from "@/src/lib/coupons";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
 import { guardRequest } from "@/src/lib/requestSecurity";
@@ -248,17 +248,20 @@ export async function POST(request: Request) {
 
   try {
     await supabase.rpc("release_expired_stock_reservations");
-    const { error: reservationError } = await supabase.rpc("reserve_preorder_stock", {
-      p_preorder_id: order.id,
-      p_items: validatedItems,
-      p_minutes: 30,
-    });
-    if (reservationError) {
-      await supabase.from("preorders").delete().eq("id", order.id);
-      return NextResponse.json(
-        { error: "Una talla se agotó mientras preparábamos tu pago. Actualiza el carrito." },
-        { status: 409 },
-      );
+    const limitedStockItems = validatedItems.filter((item) => !isUnlimitedStockProductSlug(item.slug));
+    if (limitedStockItems.length > 0) {
+      const { error: reservationError } = await supabase.rpc("reserve_preorder_stock", {
+        p_preorder_id: order.id,
+        p_items: limitedStockItems,
+        p_minutes: 30,
+      });
+      if (reservationError) {
+        await supabase.from("preorders").delete().eq("id", order.id);
+        return NextResponse.json(
+          { error: "Una talla se agotó mientras preparábamos tu pago. Actualiza el carrito." },
+          { status: 409 },
+        );
+      }
     }
 
     const configuredWebhook = process.env.CLIP_WEBHOOK_URL?.trim();

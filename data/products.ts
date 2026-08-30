@@ -19,7 +19,7 @@ export type Product = {
   color: string;
   fit: string;
   details: string;
-  status: "COMING SOON" | "PREORDER";
+  status: "COMING SOON" | "PREORDER" | "BUY";
   productStatus: ProductStatus;
   code: string;
   accent: "black" | "bone" | "chrome";
@@ -130,7 +130,7 @@ export const products: Product[] = [
     fit: "Corte regular",
     details: "Sudadera de edición especial con arte Nayiomi.ko, flor de cerezo y GT3 RS. Construida para una silueta cómoda, pesada y nocturna.",
     story: "El primer round mezcla precisión, velocidad y calma bajo presión. Cherry Blossom × GT3 RS convierte el movimiento de Nayiomi y la silueta del auto en una sola escena.",
-    status: "PREORDER",
+    status: "BUY",
     productStatus: "active",
     code: "NY-004-01",
     accent: "black",
@@ -154,7 +154,7 @@ export const products: Product[] = [
     fit: "Corte regular",
     details: "Playera de edición especial con acabado negro vintage y gráfica Nayiomi.ko de boxeo, velocidad y flor de cerezo.",
     story: "Boxing Strike captura el golpe antes del impacto: una composición frontal, directa y contenida donde Nayiomi domina el cuadro y la velocidad permanece debajo.",
-    status: "PREORDER",
+    status: "BUY",
     productStatus: "active",
     code: "NY-004-02",
     accent: "black",
@@ -178,7 +178,7 @@ export const products: Product[] = [
     fit: "Corte regular",
     details: "Sudadera de edición especial con gráfica Title Champion de Nayiomi.ko, flores de cerezo y composición vertical de gran formato.",
     story: "La pieza final del drop lleva el nombre al frente y el título completo en la espalda. Es el cierre del combate: disciplina, presencia y una imagen hecha para dominar la noche.",
-    status: "PREORDER",
+    status: "BUY",
     productStatus: "active",
     code: "NY-004-03",
     accent: "black",

@@ -45,14 +45,14 @@ export function ProductCard({ product, index }: { product: Product; index: numbe
       <div className="scanline" />
       <span className="product-view">VER DETALLES ↗</span>
     </Link>
-    <div className="product-info"><div><p>{product.unlimitedStock ? "PREVENTA / VENTA 13.08.2026" : "SOBRE PEDIDO"} / {product.drop === "STORE" ? "TIENDA GENERAL" : `DROP ${product.drop}`} / PIEZA {product.piece}</p><h3>{product.name}</h3></div><span>{product.price}</span></div>
+    <div className="product-info"><div><p>{product.unlimitedStock ? "VENTA OFICIAL / COMPRA ABIERTA" : "SOBRE PEDIDO"} / {product.drop === "STORE" ? "TIENDA GENERAL" : `DROP ${product.drop}`} / PIEZA {product.piece}</p><h3>{product.name}</h3></div><span>{product.price}</span></div>
     <div className="product-card-meta"><span>{product.material || PRODUCT_MATERIAL}</span><span>{LOCAL_DELIVERY_COPY}</span></div>
     <div className="quick-buy">
       <div className="quick-buy-row"><div className="card-sizes" aria-label="Seleccionar talla">{SIZES.map((item) => {
         const sizeAvailable = product.productStatus === "sold_out" ? 0 : product.stock.find((row) => row.size === item)?.available || 0;
         return <button key={item} type="button" className={size === item ? "selected" : ""} onClick={() => { setSize(item); setQuantity(1); }} disabled={sizeAvailable <= 0}>{item}</button>;
       })}</div><div className="card-qty"><button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Restar cantidad" disabled={isSoldOut}><Minus size={11} /></button><span>{isSoldOut ? 0 : quantity}</span><button type="button" onClick={() => setQuantity(Math.min(selectedLimit, quantity + 1))} aria-label="Sumar cantidad" disabled={isSoldOut || quantity >= selectedLimit}><Plus size={11} /></button></div></div>
-      <button className="add-cart" type="button" onClick={() => cart.addItem(product, size, Math.min(quantity, selectedAvailable))} disabled={isSoldOut}>{isSoldOut ? "AGOTADO" : "AGREGAR AL CARRITO"} <span>↗</span></button>
+      <button className="add-cart" type="button" onClick={() => cart.addItem(product, size, Math.min(quantity, selectedLimit))} disabled={isSoldOut}>{isSoldOut ? "AGOTADO" : product.unlimitedStock ? "COMPRAR AHORA" : "AGREGAR AL CARRITO"} <span>↗</span></button>
     </div>
     <div className="product-actions"><span>{fomo(available, product.unlimitedStock)} / {product.fit}</span><Link href={`/drop/${product.slug}`}>VER DETALLES ↗</Link></div>
   </motion.article>;

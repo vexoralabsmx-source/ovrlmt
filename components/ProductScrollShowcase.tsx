@@ -38,7 +38,7 @@ export function ProductScrollShowcase({ products }: { products: Product[] }) {
         <p className="section-label">02 / DROP 001</p>
         <h2>TRES PIEZAS.<br />UNA MISMA NOCHE.</h2>
       </div>
-      <p>Premium feel. Motorsport soul. Preorder abierto.</p>
+      <p>Premium feel. Motorsport soul. Compra abierta.</p>
     </div>
     <div className="scroll-products-list">
       {products.map((product, index) => <ShowcaseItem product={product} index={index} key={product.slug} />)}

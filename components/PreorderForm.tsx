@@ -140,7 +140,7 @@ export function PreorderForm({ initialProduct }: { initialProduct?: string }) {
     });
 
     return <div className="preorder-success">
-      <span>PREORDER RECIBIDO</span>
+      <span>PEDIDO RECIBIDO</span>
       <h2>{result.orderCode}</h2>
       <p>Total: ${result.totalMxn.toLocaleString("es-MX")} MXN</p>
       <p className="preorder-success-email">{result.emailWarning ? "Intentamos enviar confirmación a" : "Confirmación enviada a"} {result.customerEmail}</p>

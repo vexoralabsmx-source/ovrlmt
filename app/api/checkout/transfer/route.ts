@@ -6,7 +6,7 @@ import {
   isFreePersonalDeliveryPostalCode,
   type ProductSize,
 } from "@/data/store";
-import { getCatalogProducts } from "@/src/lib/catalog";
+import { getCatalogProducts, isUnlimitedStockProductSlug } from "@/src/lib/catalog";
 import { sendAdminPreorderNotification, sendCustomerPreorderEmail } from "@/src/lib/resend";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
 import { guardRequest } from "@/src/lib/requestSecurity";
@@ -220,14 +220,17 @@ export async function POST(request: Request) {
   if (error || !order) return NextResponse.json({ error: "No pudimos guardar tu pedido." }, { status: 500 });
 
   await supabase.rpc("release_expired_stock_reservations");
-  const { error: reservationError } = await supabase.rpc("reserve_preorder_stock", {
-    p_preorder_id: order.id,
-    p_items: items,
-    p_minutes: 180,
-  });
-  if (reservationError) {
-    await supabase.from("preorders").delete().eq("id", order.id);
-    return NextResponse.json({ error: "Una talla acaba de agotarse. Actualiza tu carrito." }, { status: 409 });
+  const limitedStockItems = items.filter((item) => !isUnlimitedStockProductSlug(item.slug));
+  if (limitedStockItems.length > 0) {
+    const { error: reservationError } = await supabase.rpc("reserve_preorder_stock", {
+      p_preorder_id: order.id,
+      p_items: limitedStockItems,
+      p_minutes: 180,
+    });
+    if (reservationError) {
+      await supabase.from("preorders").delete().eq("id", order.id);
+      return NextResponse.json({ error: "Una talla acaba de agotarse. Actualiza tu carrito." }, { status: 409 });
+    }
   }
 
   if (discountCode) {
@@ -244,7 +247,9 @@ export async function POST(request: Request) {
     addressCountry: customer.country, addressStreet: customer.street, addressExteriorNumber: customer.exteriorNumber,
     addressInteriorNumber: customer.interiorNumber || null, addressNeighborhood: customer.neighborhood,
     addressReference: customer.reference,
-    notes: "Transferencia pendiente de comprobante. La reserva vence en 3 horas.",
+    notes: limitedStockItems.length > 0
+      ? "Transferencia pendiente de comprobante. El inventario limitado se reserva durante 3 horas."
+      : "Transferencia pendiente de comprobante.",
   };
   await Promise.allSettled([sendCustomerPreorderEmail(emailOrder), sendAdminPreorderNotification(emailOrder)]);
   await supabase.from("checkout_drafts").update({ recovered_at: new Date().toISOString() }).eq("customer_email", customer.email);
