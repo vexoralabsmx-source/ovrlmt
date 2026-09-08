@@ -117,13 +117,13 @@ export function EnviatodoQuoteWidget() {
     <section className="enviatodo-widget" aria-label="Cotizador EnviaTodo">
       <div className="enviatodo-widget-head">
         <div>
-          <p className="section-label">ENVIATODO API V2 / SANDBOX</p>
+          <p className="section-label">OPCIONES DE ENTREGA</p>
           <h2>Cotizador de envio.</h2>
         </div>
         <Truck size={28} />
       </div>
 
-      {message ? <p className="enviatodo-message">{message}</p> : null}
+      {message ? <p className="enviatodo-message" role="status">{message}</p> : null}
 
       <div className="enviatodo-form-grid">
         <fieldset>
@@ -192,8 +192,8 @@ export function EnviatodoQuoteWidget() {
               <p>{rate.transport_type || "Transporte"} / {rate.estimated_date || "Tiempo por confirmar"}</p>
               <dl>
                 <div><dt>Total</dt><dd>{money(rate.total)}</dd></div>
-                <div><dt>provider_id</dt><dd>{rate.provider_id}</dd></div>
-                <div><dt>service_id</dt><dd>{rate.provider_service_id}</dd></div>
+
+
               </dl>
               <small>Tarifa informativa. La guía se genera únicamente desde el panel administrativo después de validar el pago.</small>
             </article>

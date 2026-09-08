@@ -1,5 +1,6 @@
 "use client";
 
+import { DELIVERY_ESTIMATE } from "@/data/commerce";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -144,10 +145,13 @@ export function CartPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [zipLoading, setZipLoading] = useState(false);
 
+  useEffect(() => { setDiscountMxn(0); setCouponMessage(""); }, [cart.subtotal, data.email]);
   const cleanPostalCode = data.postalCode.replace(/\D/g, "");
   const personalDeliveryAvailable = isFreePersonalDeliveryPostalCode(cleanPostalCode);
   const personalDelivery = personalDeliveryAvailable && deliveryMethod === "personal";
-  const discountedSubtotal = Math.max(0, cart.subtotal - discountMxn);
+  const appliedDiscount = Math.max(cart.wholesaleDiscount, discountMxn);
+  const wholesaleApplied = cart.wholesaleDiscount > 0 && cart.wholesaleDiscount >= discountMxn;
+  const discountedSubtotal = Math.max(0, cart.subtotal - appliedDiscount);
   const shipping = getShipping(discountedSubtotal, personalDelivery);
   const total = discountedSubtotal + shipping;
   const shippingLabel = personalDelivery
@@ -194,7 +198,7 @@ export function CartPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: data.email, fullName: data.fullName, items: cart.items, subtotalMxn: cart.subtotal }),
-      });
+      }).catch(() => undefined);
     }, 1200);
     return () => window.clearTimeout(timeout);
   }, [cart.items, cart.subtotal, data.email, data.fullName]);
@@ -341,24 +345,25 @@ export function CartPage() {
     }
     setCouponLoading(true);
     setCouponMessage("");
-    const response = await fetch("/api/coupons/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: couponCode, subtotalMxn: cart.subtotal, email: data.email }),
-    });
-    const result = await response.json() as { discountMxn?: number; code?: string; label?: string; error?: string };
-    setCouponLoading(false);
-    if (!response.ok) {
+    try {
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode, subtotalMxn: cart.subtotal, email: data.email }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const result = await response.json() as { discountMxn?: number; code?: string; label?: string; error?: string };
+      if (!response.ok) throw new Error(result.error || "Cupón inválido.");
+      setCouponCode(result.code || couponCode.toUpperCase());
+      setDiscountMxn(Number(result.discountMxn || 0));
+      setCouponMessage(`${result.label || "Descuento validado"}. Cupón aplicado.`);
+    } catch (error) {
       setDiscountMxn(0);
-      setCouponMessage(result.error || "Cupón inválido.");
-      return;
-    }
-    setCouponCode(result.code || couponCode.toUpperCase());
-    setDiscountMxn(Number(result.discountMxn || 0));
-    setCouponMessage(`${result.label}. Cupón aplicado.`);
+      setCouponMessage(error instanceof Error && error.name !== "TimeoutError" ? error.message : "No pudimos validar el cupón. Inténtalo de nuevo.");
+    } finally { setCouponLoading(false); }
   }
 
   async function startClipCheckout() {
+    if (cart.pricingError) { setPaymentError(cart.pricingError); return; }
     setIsSubmitting(true);
     setPaymentError("");
     const checkoutCustomer = { ...data, address: buildAddressLine(data) };
@@ -376,6 +381,7 @@ export function CartPage() {
       const result = await response.json() as {
         orderCode?: string;
         totalMxn?: number;
+        shippingMxn?: number;
         paymentRequestId?: string;
         paymentUrl?: string;
         error?: string;
@@ -389,7 +395,7 @@ export function CartPage() {
         paymentRequestId: result.paymentRequestId,
         code: result.orderCode,
         total: Number(result.totalMxn ?? total),
-        shipping,
+        shipping: Number(result.shippingMxn ?? shipping),
         items: [...cart.items],
         customer: data,
       };
@@ -403,6 +409,7 @@ export function CartPage() {
 
   async function confirmOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (cart.pricingError) { setPaymentError(cart.pricingError); return; }
     if (!validateStepTwo()) {
       goToStep(2);
       return;
@@ -613,7 +620,7 @@ export function CartPage() {
                     <button className="checkout-back secondary-control" type="button" onClick={() => goToStep(1)}>VOLVER</button>
                     <button className="checkout-next" type="button" onClick={continueToPayment}>CONTINUAR AL PAGO <span>↗</span></button>
                   </div>
-                  <p className="checkout-estimate"><Truck size={15} /> Producción estimada: 5–8 días hábiles. Envío nacional: 2–5 días hábiles adicionales.</p>
+                  <p className="checkout-estimate"><Truck size={15} /> {DELIVERY_ESTIMATE}</p>
                 </section>
               </StepPanel>
             )}
@@ -689,11 +696,13 @@ export function CartPage() {
             <div className="checkout-coupon">
               <label htmlFor="coupon-code">CUPÓN O CÓDIGO DE PAQUETE</label>
               <div><input id="coupon-code" value={couponCode} onChange={(event) => { setCouponCode(event.target.value.toUpperCase()); setDiscountMxn(0); setCouponMessage(""); }} placeholder="OVRLMT..." /><button type="button" onClick={applyCoupon} disabled={couponLoading || !couponCode}>{couponLoading ? "..." : "APLICAR"}</button></div>
+              {cart.wholesaleDiscount > 0 && <small>Mayoreo disponible: {money(cart.wholesaleDiscount)}. Se aplica el mayor ahorro entre mayoreo y cupón; no se acumulan.</small>}
+              {cart.pricingError && <small role="alert">{cart.pricingError}</small>}
               {couponMessage && <small className={discountMxn > 0 ? "success" : "error"}>{couponMessage}</small>}
             </div>
             <dl>
               <div><dt>Subtotal</dt><dd>{money(cart.subtotal)}</dd></div>
-              {discountMxn > 0 && <div><dt>Descuento</dt><dd>-{money(discountMxn)}</dd></div>}
+              {appliedDiscount > 0 && <div><dt>{wholesaleApplied ? "Mayoreo por modelo" : "Cupón"}</dt><dd>-{money(appliedDiscount)}</dd></div>}
               <div><dt>{shippingLabel}</dt><dd>{shipping === 0 ? "GRATIS" : money(shipping)}</dd></div>
               <div><dt>Total a pagar</dt><dd>{money(total)}</dd></div>
             </dl>

@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
-import { products } from "@/data/products";
-
-export default function sitemap(): MetadataRoute.Sitemap {
+import { getCatalogProducts } from "@/src/lib/catalog";
+import { productUrl } from "@/data/commerce";
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = "https://ovrlmt.xyz";
-  const routes = ["", "/drop", "/contact", "/cart", "/story", "/size-guide", "/envios", "/cambios", "/privacidad"];
-  return [...routes.map((route) => ({ url: `${base}${route}`, lastModified: new Date(), changeFrequency: route === "" || route === "/drop" ? "weekly" as const : "monthly" as const, priority: route === "" ? 1 : .7 })), ...products.map((product) => ({ url: `${base}/drop/${product.slug}`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: .9 }))];
+  const routes = ["", "/drop", "/contact", "/story", "/size-guide", "/envios", "/cambios", "/privacidad", "/personalizados"];
+  const products = await getCatalogProducts();
+  return [...routes.map(route => ({ url: `${base}${route}`, changeFrequency: "weekly" as const, priority: route === "" ? 1 : .7 })), ...products.map(product => ({ url: `${base}${productUrl(product.slug)}`, changeFrequency: "weekly" as const, priority: .8 }))];
 }

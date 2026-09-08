@@ -1,4 +1,29 @@
 import { EnviatodoQuoteWidget } from "@/components/EnviatodoQuoteWidget";
 import { PolicyPage } from "@/components/PolicyPage";
-export const metadata = { title: "Envíos" };
-export default function Shipping() { return <PolicyPage code="POLICY / SHIPPING" title="ENVÍOS" intro="Información clara antes de confirmar tu pedido. OVRLMT maneja entrega local en Puebla y envío nacional en México." items={["Envío gratis a todo México en pedidos desde $1,500 MXN.", "Si tu pedido no llega al mínimo y no aplica entrega local, el envío nacional cuesta $150 MXN.", "La entrega personal gratis se realiza en Plaza Crystal, Walmart San Manuel o Plaza Dorada, validada con tu código postal en checkout.", "El punto y horario se confirman contigo por WhatsApp.", "Al producirse sobre pedido, el tiempo de salida se confirma cuando termina la producción.", "Cuando el pedido salga, se comparte guía o confirmación de entrega por WhatsApp.", "Direcciones incompletas o datos incorrectos pueden retrasar el envío."]}><EnviatodoQuoteWidget /></PolicyPage>; }
+import { SHIPPING_COPY, DELIVERY_ESTIMATE } from "@/data/commerce";
+import { LOCAL_DELIVERY_COPY } from "@/data/store";
+import { publicShippingQuoteEnabled } from "@/src/lib/shippingFeature";
+export const metadata = {
+  title: "Envíos",
+  description:
+    "Envío nacional de $150 MXN, gratis desde $1,500 MXN y entrega personal en Puebla. Consulta tiempos de producción y entrega.",
+  alternates: { canonical: "/envios" },
+};
+export default function Shipping() {
+  return (
+    <PolicyPage
+      code="ENTREGA / MÉXICO"
+      title="ENVÍOS"
+      intro="Información para planear tu compra. Producimos en Puebla y enviamos a México."
+      items={[
+        SHIPPING_COPY,
+        LOCAL_DELIVERY_COPY,
+        DELIVERY_ESTIMATE,
+        "Consulta tu pedido desde tu cuenta. Al salir, compartimos la guía o confirmación de entrega.",
+        "Verifica dirección, código postal y teléfono antes de pagar.",
+      ]}
+    >
+      {publicShippingQuoteEnabled() && <EnviatodoQuoteWidget />}
+    </PolicyPage>
+  );
+}

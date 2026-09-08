@@ -3,50 +3,21 @@
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import type { Product } from "@/data/products";
+import { CURRENT_DROP_URL, garmentType, productUrl } from "@/data/commerce";
 import { ArrowUpRight } from "lucide-react";
 
-const naomiPieces = [
-  {
-    slug: "naomi-cherry-blossom-gt3-hoodie",
-    piece: "01 / 03",
-    type: "SUDADERA / CORTE REGULAR",
-    name: "Cherry Blossom × GT3 RS",
-    price: "$459 MXN",
-    image: "/drops/naomi/cherry-blossom-gt3-hoodie.webp",
-    alt: "Sudadera negra Naomi Cherry Blossom con diseño de boxeadora, flores y automóvil GT3 RS",
-  },
-  {
-    slug: "naomi-boxing-strike-tee",
-    piece: "02 / 03",
-    type: "PLAYERA / CORTE REGULAR",
-    name: "Boxing Strike",
-    price: "$359 MXN",
-    image: "/drops/naomi/boxing-strike-tee.webp",
-    alt: "Playera negra Naomi Boxing Strike con boxeadora, flores rosas y automóvil deportivo",
-  },
-  {
-    slug: "naomi-title-champion-hoodie",
-    piece: "03 / 03",
-    type: "SUDADERA / CORTE REGULAR",
-    name: "Title Champion",
-    price: "$459 MXN",
-    image: "/drops/naomi/title-champion-hoodie.webp",
-    alt: "Sudadera negra Naomi Title Champion con boxeadora y flores rosas",
-  },
-] as const;
-
-function NaomiPieceGroup({ duplicate = false }: { duplicate?: boolean }) {
+function NaomiPieceGroup({ products, duplicate = false }: { products: Product[]; duplicate?: boolean }) {
   return (
     <div className="naomi-marquee-group" aria-hidden={duplicate || undefined}>
-      {naomiPieces.map((piece) => (
-        <Link className="naomi-piece" href={`/drop/${piece.slug}`} key={`${duplicate ? "copy-" : ""}${piece.slug}`} tabIndex={duplicate ? -1 : undefined}>
+      {products.map((piece) => (
+        <Link className="naomi-piece" href={productUrl(piece.slug)} key={`${duplicate ? "copy-" : ""}${piece.slug}`} tabIndex={duplicate ? -1 : undefined}>
           <div className="naomi-piece-image">
             <Image
               src={piece.image}
-              alt={duplicate ? "" : piece.alt}
+              alt={duplicate ? "" : piece.name}
               fill
-              loading="eager"
-              unoptimized
+              loading="lazy"
               sizes="(max-width: 700px) 82vw, (max-width: 1200px) 46vw, 34vw"
             />
             <span>{piece.piece}</span>
@@ -54,7 +25,7 @@ function NaomiPieceGroup({ duplicate = false }: { duplicate?: boolean }) {
           </div>
           <div className="naomi-piece-copy">
             <div>
-              <span>{piece.type}</span>
+              <span>{garmentType(piece)} / {piece.fit}</span>
               <h3>{piece.name}</h3>
             </div>
             <strong>{piece.price}</strong>
@@ -66,7 +37,7 @@ function NaomiPieceGroup({ duplicate = false }: { duplicate?: boolean }) {
   );
 }
 
-export function NaomiDropShowcase() {
+export function NaomiDropShowcase({ products }: { products: Product[] }) {
   const reduceMotion = useReducedMotion();
   const enter = (delay: number, x = 0, y = 32) => ({
     initial: reduceMotion ? false as const : { opacity: 0, x, y },
@@ -96,17 +67,17 @@ export function NaomiDropShowcase() {
 
       <motion.div className="naomi-marquee" aria-label="Piezas del drop Nayiomi.ko por OVRLMT" {...enter(0.18, 0, 46)}>
         <div className="naomi-marquee-track">
-          <NaomiPieceGroup />
-          <NaomiPieceGroup duplicate />
+          <NaomiPieceGroup products={products} />
+          <NaomiPieceGroup products={products} duplicate />
         </div>
       </motion.div>
 
       <motion.footer className="naomi-drop-foot" {...enter(0.1, 0, 24)}>
         <span>PLAYERAS / $359 MXN</span>
         <span>SUDADERAS / $459 MXN</span>
-        <span>STOCK ILIMITADO</span>
+        <span>PRODUCCIÓN SOBRE PEDIDO</span>
         <span>VENTA OFICIAL / ONLINE</span>
-        <Link href="/drop">VER DROP COMPLETO <ArrowUpRight aria-hidden="true" size={16} /></Link>
+        <Link href={CURRENT_DROP_URL}>VER DROP COMPLETO <ArrowUpRight aria-hidden="true" size={16} /></Link>
       </motion.footer>
     </motion.section>
   );

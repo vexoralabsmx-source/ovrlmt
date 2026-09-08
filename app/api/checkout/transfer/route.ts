@@ -1,3 +1,5 @@
+import { getWholesaleDiscount } from "@/src/lib/wholesale";
+import { MAX_ITEM_QUANTITY, chooseDiscount } from "@/data/wholesale";
 import { NextResponse } from "next/server";
 import {
   FREE_SHIPPING_MINIMUM,
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
   const blocked = await guardRequest(request, { bucket: "checkout-transfer", limit: 8, windowMs: 10 * 60_000, maxBodyBytes: 131_072, requireJson: true });
   if (blocked) return blocked;
   const body = await request.json().catch(() => null) as TransferBody | null;
+  if (!body || typeof body !== "object") return NextResponse.json({ error: "Solicitud inválida." }, { status: 400 });
   const customer = {
     email: clean(body?.customer?.email, 180).toLowerCase(),
     fullName: clean(body?.customer?.fullName, 120),
@@ -69,7 +72,7 @@ export async function POST(request: Request) {
     neighborhood: clean(body?.customer?.neighborhood, 100),
     city: clean(body?.customer?.city, 80),
     state: clean(body?.customer?.state, 80),
-    postalCode: clean(body?.customer?.postalCode, 5).replace(/\D/g, ""),
+    postalCode: clean(body?.customer?.postalCode, 20),
     reference: clean(body?.customer?.reference, 120),
     address: clean(body?.customer?.address, 280),
   };
@@ -99,17 +102,22 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json({ error: "Completa correctamente todos los datos obligatorios." }, { status: 400 });
   }
-  if (!body?.items?.length || body.items.length > 20) {
+  if (!Array.isArray(body?.items) || !body.items.length || body.items.length > 20) {
     return NextResponse.json({ error: "El carrito no es válido." }, { status: 400 });
   }
 
-  const catalog = await getCatalogProducts();
+  const catalog = await getCatalogProducts({ requireLive: true });
   const items = [];
+  const seenItems = new Set<string>();
   for (const requested of body.items) {
+    if (!requested || typeof requested !== "object") return NextResponse.json({ error: "Artículo inválido." }, { status: 400 });
     const slug = clean(requested.slug, 100);
     const size = clean(requested.size, 4).toUpperCase() as ProductSize;
     const quantity = Number(requested.quantity);
     const product = catalog.find((candidate) => candidate.slug === slug);
+    const itemKey = `${slug}:${size}`;
+    if (seenItems.has(itemKey)) return NextResponse.json({ error: "Agrupa las cantidades de cada talla en una sola línea." }, { status: 400 });
+    seenItems.add(itemKey);
     const stock = product?.stock.find((candidate) => candidate.size === size);
     if (
       !product ||
@@ -117,9 +125,10 @@ export async function POST(request: Request) {
       !SIZES.includes(size) ||
       !Number.isInteger(quantity) ||
       quantity < 1 ||
-      quantity > 20 ||
+      quantity > MAX_ITEM_QUANTITY ||
       !stock ||
-      quantity > stock.available
+      stock.available <= 0 ||
+      (!product.unlimitedStock && quantity > stock.available)
     ) {
       return NextResponse.json({ error: "La disponibilidad cambió. Actualiza tu carrito." }, { status: 409 });
     }
@@ -135,6 +144,9 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseAdmin();
   const subtotalMxn = items.reduce((sum, item) => sum + item.lineTotalMxn, 0);
+  let wholesale;
+  try { wholesale = await getWholesaleDiscount(items.map(item => ({ slug: item.slug, quantity: item.quantity, priceMxn: item.unitPriceMxn }))); }
+  catch { return NextResponse.json({ error: "No pudimos verificar el mayoreo. Intenta nuevamente." }, { status: 503 }); }
   const couponInput = clean(body.couponCode, 60).toUpperCase();
   let discountMxn = 0;
   let discountCode: string | null = null;
@@ -163,6 +175,9 @@ export async function POST(request: Request) {
       : Math.min(subtotalMxn, Math.round(Number(coupon!.value)));
   }
 
+  const appliedDiscount = chooseDiscount(wholesale.discountMxn, discountMxn);
+  discountMxn = appliedDiscount.discountMxn;
+  if (appliedDiscount.wholesaleApplied) discountCode = null;
   const afterDiscount = Math.max(0, subtotalMxn - discountMxn);
   const deliveryMethodInput = clean(body.deliveryMethod, 20).toLowerCase();
   if (deliveryMethodInput && deliveryMethodInput !== "personal" && deliveryMethodInput !== "national") {
@@ -205,7 +220,7 @@ export async function POST(request: Request) {
     address_neighborhood: customer.neighborhood,
     address_reference: customer.reference,
     status: "pending_payment",
-    items,
+    items: items.map((item, i) => ({ ...item, wholesaleDiscountMxn: appliedDiscount.wholesaleApplied ? wholesale.lines[i].discountMxn : 0, wholesaleRule: appliedDiscount.wholesaleApplied ? wholesale.lines[i].rule : null })),
     payment_provider: "manual",
     payment_method: "transfer",
     payment_status: "awaiting_proof",

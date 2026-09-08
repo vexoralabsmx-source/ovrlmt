@@ -1,6 +1,8 @@
 # OVRLMT - Built After Dark
 
-Next.js App Router para `ovrlmt.xyz`: tienda/preorder ligero para DROP 001 con Supabase y Resend.
+Next.js 16 App Router para `ovrlmt.xyz`: tienda streetwear con Supabase, carrito, Clip y transferencia.
+
+La revisión local de septiembre de 2026, los pendientes comerciales, las pruebas y la estructura actual se documentan en [docs/OVRLMT-REVIEW.md](docs/OVRLMT-REVIEW.md). `/contact` ahora es contacto y `/personalizados` contiene el servicio secundario. Las instrucciones de preorder más abajo son históricas; el flujo vigente se realiza en `/cart`.
 
 ## Desarrollo
 

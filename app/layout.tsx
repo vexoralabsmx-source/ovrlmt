@@ -4,8 +4,8 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
-import { InitialLoader } from "@/components/InitialLoader";
-import { FREE_SHIPPING_MINIMUM, LOCAL_DELIVERY_AREA } from "@/data/store";
+
+import { FREE_SHIPPING_MINIMUM } from "@/data/store";
 
 const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
 const body = Inter({ subsets: ["latin"], variable: "--font-body" });
@@ -13,19 +13,19 @@ const body = Inter({ subsets: ["latin"], variable: "--font-body" });
 export const metadata: Metadata = {
   metadataBase: new URL("https://ovrlmt.xyz"),
   title: { default: "OVRLMT — Streetwear Built After Dark", template: "%s — OVRLMT" },
-  description: "Streetwear mexicano producido sobre pedido, inspirado en motorsport nocturno, velocidad, asfalto y cultura urbana. Drops limitados y compra online.",
+  description: "Streetwear mexicano producido sobre pedido, inspirado en motorsport nocturno, velocidad, asfalto y cultura urbana. Colecciones y compra online.",
   keywords: ["OVRLMT", "streetwear México", "ropa urbana premium", "playeras premium", "playeras edición limitada"],
-  icons: { icon: "/brand/favicon.png", shortcut: "/brand/favicon.png", apple: "/brand/favicon.png" },
+  icons: { icon: "/brand/favicon-32.png", shortcut: "/brand/favicon-32.png", apple: "/brand/apple-touch-icon.png" },
   alternates: { canonical: "/" },
   openGraph: {
     type: "website", locale: "es_MX", url: "https://ovrlmt.xyz", siteName: "OVRLMT",
     title: "OVRLMT — Streetwear Built After Dark",
-    description: "Streetwear mexicano producido sobre pedido, inspirado en motorsport nocturno, velocidad, asfalto y cultura urbana. Drops limitados y compra online.",
-    images: [{ url: "https://res.cloudinary.com/dakjhsfne/image/upload/v1782265447/ChatGPT_Image_23_jun_2026_07_38_53_p.m._3_f1cqbm.png", width: 1200, height: 630, alt: "OVRLMT Drop 001" }],
+    description: "Streetwear mexicano producido sobre pedido, inspirado en motorsport nocturno, velocidad, asfalto y cultura urbana. Colecciones y compra online.",
+    images: [{ url: "/drops/naomi/cherry-blossom-gt3-hoodie.webp", alt: "OVRLMT — Built After Dark" }],
   },
-  twitter: { card: "summary_large_image", title: "OVRLMT — Streetwear Built After Dark", description: "Streetwear mexicano sobre pedido. Drops limitados y compra online.", images: ["https://res.cloudinary.com/dakjhsfne/image/upload/v1782265447/ChatGPT_Image_23_jun_2026_07_38_53_p.m._3_f1cqbm.png"] },
+  twitter: { card: "summary_large_image", title: "OVRLMT — Streetwear Built After Dark", description: "Streetwear mexicano sobre pedido. Colecciones y compra online.", images: ["/drops/naomi/cherry-blossom-gt3-hoodie.webp"] },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es" data-scroll-behavior="smooth"><body suppressHydrationWarning className={`${display.variable} ${body.variable}`}><CartProvider><InitialLoader /><div className="noise" /><div className="shipping-bar"><strong>TODO ES SOBRE PEDIDO</strong><span>· PRODUCCIÓN AL CONFIRMAR TU PAGO</span><span className="shipping-bar-extra">· ENVÍO GRATIS A TODO MÉXICO DESDE ${FREE_SHIPPING_MINIMUM.toLocaleString("es-MX")} MXN · ENTREGA GRATIS EN {LOCAL_DELIVERY_AREA.toUpperCase()}</span></div><Header />{children}<Footer /></CartProvider></body></html>;
+  return <html lang="es" data-scroll-behavior="smooth"><body suppressHydrationWarning className={`${display.variable} ${body.variable}`}><CartProvider><a className="skip-link" href="#main-content">Saltar al contenido</a><div className="noise" /><div className="shipping-bar"><strong>ENVÍO GRATIS DESDE ${FREE_SHIPPING_MINIMUM.toLocaleString("es-MX")} MXN</strong><span className="shipping-bar-extra">· PRODUCIDO EN PUEBLA · ENTREGA PERSONAL SIN COSTO</span></div><Header />{children}<Footer /></CartProvider></body></html>;
 }

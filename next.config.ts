@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     ],
   },
   async redirects() {
-    return [{ source: "/drop/playera-01", destination: "/drop/after-limits-001", permanent: true }];
+    return [{ source: "/drop/naomi-:piece", destination: "/drop/nayiomi-:piece", permanent: true }, { source: "/drop/playera-01", destination: "/drop/after-limits-001", permanent: true }];
   },
   async headers() {
     return [{

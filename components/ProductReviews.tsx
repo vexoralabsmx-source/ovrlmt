@@ -18,11 +18,18 @@ type Review = {
 export function ProductReviews({ productSlug }: { productSlug: string }) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   useEffect(() => {
-    fetch(`/api/reviews?product=${encodeURIComponent(productSlug)}`)
-      .then((response) => response.json())
-      .then((result) => setReviews(result.reviews || []))
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
+    let active = true;
+    setLoading(true); setError(false);
+    fetch(`/api/reviews?product=${encodeURIComponent(productSlug)}`, { signal: controller.signal })
+      .then((response) => { if (!response.ok) throw new Error("reviews"); return response.json(); })
+      .then((result) => { if (active) setReviews(result.reviews || []); })
+      .catch(() => { if (active) setError(true); })
+      .finally(() => { window.clearTimeout(timeout); if (active) setLoading(false); });
+    return () => { active = false; controller.abort(); window.clearTimeout(timeout); };
   }, [productSlug]);
   const average = useMemo(() => reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0, [reviews]);
 
@@ -32,7 +39,7 @@ export function ProductReviews({ productSlug }: { productSlug: string }) {
         <div><p className="section-label">COMMUNITY / REVIEWS</p><h2>RESEÑAS<br />REALES</h2></div>
         <p>{reviews.length ? `${average.toFixed(1)} de 5 · ${reviews.length} reseña${reviews.length === 1 ? "" : "s"}` : "Las compras verificadas pueden dejar una reseña desde su cuenta."}</p>
       </div>
-      {loading ? <div className="reviews-empty">CARGANDO RESEÑAS</div> : !reviews.length ? (
+      {loading ? <div className="reviews-empty">CARGANDO RESEÑAS</div> : error ? <div className="reviews-empty" role="status">No pudimos cargar las reseñas. Inténtalo de nuevo más tarde.</div> : !reviews.length ? (
         <div className="reviews-empty"><Star size={24} /><p>Todavía no hay reseñas publicadas para esta pieza.</p></div>
       ) : (
         <div className="reviews-grid">

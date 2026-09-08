@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { WHATSAPP_NUMBER } from "@/data/store";
 
-const links = [["Inicio", "/"], ["Drop", "/drop"], ["Comprar", "/drop"], ["Envíos", "/envios"], ["Cambios", "/cambios"], ["Privacidad", "/privacidad"]];
+const links = [["Inicio", "/"], ["Tienda", "/drop"], ["Contacto", "/contact"], ["Envíos", "/envios"], ["Cambios", "/cambios"], ["Privacidad", "/privacidad"]];
 
 export function Footer() {
   return <footer className="footer">

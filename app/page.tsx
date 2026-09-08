@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+import { getCatalogProducts } from "@/src/lib/catalog";
+import { CURRENT_DROP_URL, isCurrentDrop } from "@/data/commerce";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
@@ -6,9 +9,18 @@ import { PageFrame } from "@/components/PageFrame";
 import { Reveal } from "@/components/Reveal";
 import { NaomiDropShowcase } from "@/components/NaomiDropShowcase";
 import { NextDropTeaser } from "@/components/NextDropTeaser";
-import { FaqSection, HowToBuy, SocialProofSection, TrustSection } from "@/components/CommerceSections";
+import { FaqSection, HowToBuy, SocialProofSection, TrustSection, QualitySection, SizeSummary } from "@/components/CommerceSections";
 
 export const dynamic = "force-dynamic";
+
+async function CurrentDropContent() {
+  const products = (await getCatalogProducts()).filter(isCurrentDrop).slice(0, 3);
+  return <NaomiDropShowcase products={products} />;
+}
+async function ProductQuality() {
+  const products = (await getCatalogProducts()).filter(isCurrentDrop).slice(0, 3);
+  return <QualitySection products={products} />;
+}
 
 export default function Home() {
 
@@ -36,7 +48,7 @@ export default function Home() {
             />
           </div>
           <div className="hero-sub">
-            <h2>BUILT AFTER DARK</h2>
+            <h1>BUILT AFTER DARK</h1>
             <p>
               Streetwear premium producido sobre pedido,
               <br /> inspirado en velocidad, noche y cultura urbana.
@@ -46,7 +58,7 @@ export default function Home() {
             <Link className="btn primary" href="/drop">
               VER DROPS <ArrowUpRight size={16} />
             </Link>
-            <Link className="btn ghost" href="/drop">
+            <Link className="btn ghost" href={CURRENT_DROP_URL}>
               COMPRAR AHORA
             </Link>
           </div>
@@ -58,7 +70,7 @@ export default function Home() {
         <div className="hero-number">01</div>
       </section>
 
-      <NaomiDropShowcase />
+      <Suspense fallback={<div className="drop-loading" />}><CurrentDropContent /></Suspense>
 
       <NextDropTeaser />
 
@@ -119,11 +131,13 @@ export default function Home() {
             <em>COMPRA ABIERTA.</em>
           </h2>
         </Reveal>
-        <Link className="btn primary jumbo" href="/drop">
+        <Link className="btn primary jumbo" href={CURRENT_DROP_URL}>
           COMPRAR AHORA <ArrowUpRight />
         </Link>
         <span className="cta-meta">PRODUCCIÓN SOBRE PEDIDO / DROP 001 AGOTADO</span>
       </section>
+      <Suspense fallback={null}><ProductQuality /></Suspense>
+      <SizeSummary />
       <SocialProofSection />
       <TrustSection />
       <FaqSection />

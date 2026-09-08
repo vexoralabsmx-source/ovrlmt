@@ -1,3 +1,24 @@
 import { PolicyPage } from "@/components/PolicyPage";
-export const metadata = { title: "Cambios" };
-export default function Changes() { return <PolicyPage code="POLICY / CHANGES" title="CAMBIOS" intro="Revisa cuidadosamente talla, dirección y producto antes de pagar. El pedido se registra con datos específicos." items={["Puedes corregir talla o datos antes de enviar tu comprobante de pago.", "No hay cambios por error de talla después de confirmar la compra.", "Los cambios solo aplican por defecto de producción comprobable.", "Para revisar un defecto, escríbenos por WhatsApp dentro de las primeras 48 horas después de recibir tu pieza.", "La prenda debe estar sin uso, sin lavar y con evidencia clara del problema.", "No aplican cambios por desgaste, mal lavado, daño accidental o uso incorrecto.", "Si el caso procede, OVRLMT confirmará reposición, ajuste o solución disponible por WhatsApp."]} />; }
+import { POLICIES } from "@/data/commerce";
+export const metadata = {
+  title: "Cambios y atención posventa",
+  description:
+    "Consulta cómo solicitar correcciones de talla, atención por defectos y cancelaciones de tu pedido OVRLMT.",
+  alternates: { canonical: "/cambios" },
+};
+export default function Changes() {
+  return (
+    <PolicyPage
+      code="ATENCIÓN POSVENTA"
+      title="CAMBIOS"
+      intro="Revisa talla, dirección y producto antes de pagar. Para cualquier solicitud, conserva tu número de pedido."
+      items={[
+        POLICIES.sizes,
+        POLICIES.defects,
+        POLICIES.cancellations,
+        "Conserva fotos del problema y evita lavar o modificar la prenda mientras revisamos tu caso.",
+        "Te comunicaremos la solución correspondiente por WhatsApp o desde tu cuenta.",
+      ]}
+    />
+  );
+}

@@ -4,7 +4,9 @@ import { PageFrame } from "@/components/PageFrame";
 import { TrustSection } from "@/components/CommerceSections";
 
 export const metadata = {
-  title: "Checkout",
+  title: "Carrito y checkout",
+  robots: { index: false, follow: false },
+  alternates: { canonical: "/cart" },
   description: "Finaliza tu pedido OVRLMT con tarjeta de crédito, débito o transferencia.",
 };
 

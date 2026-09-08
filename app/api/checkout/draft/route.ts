@@ -1,3 +1,6 @@
+import { MAX_ITEM_QUANTITY } from "@/data/wholesale";
+import { getCatalogProducts } from "@/src/lib/catalog";
+import { SIZES } from "@/data/store";
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/src/lib/supabaseAdmin";
 import { guardRequest } from "@/src/lib/requestSecurity";
@@ -8,11 +11,22 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as { email?: unknown; fullName?: unknown; items?: unknown; subtotalMxn?: unknown } | null;
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase().slice(0, 180) : "";
   const fullName = typeof body?.fullName === "string" ? body.fullName.trim().slice(0, 120) : "";
-  const items = Array.isArray(body?.items) ? body.items.slice(0, 20) : [];
-  const subtotalMxn = Number(body?.subtotalMxn);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !items.length || !Number.isFinite(subtotalMxn)) {
+  const requestedItems: unknown[] = Array.isArray(body?.items) ? body.items : [];
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !requestedItems.length || requestedItems.length > 20) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
+  const catalog = await getCatalogProducts({ requireLive: true });
+  const items = [];
+  for (const requested of requestedItems) {
+    if (!requested || typeof requested !== "object") return NextResponse.json({ ok: false }, { status: 400 });
+    const item = requested as Record<string, unknown>;
+    const product = catalog.find(p => p.slug === item.slug && p.productStatus === "active");
+    const size = SIZES.find(size => size === item.size);
+    const quantity = Number(item.quantity);
+    if (!product || !size || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_ITEM_QUANTITY) return NextResponse.json({ ok: false }, { status: 400 });
+    items.push({ slug: product.slug, name: product.name, image: product.image, size, quantity, priceMxn: product.priceMxn });
+  }
+  const subtotalMxn = items.reduce((total, item) => total + item.priceMxn * item.quantity, 0);
   const { error } = await getSupabaseAdmin().from("checkout_drafts").upsert({
     customer_email: email,
     customer_name: fullName || null,

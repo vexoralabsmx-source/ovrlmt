@@ -1,14 +1,43 @@
 import Link from "next/link";
 import { PageFrame } from "@/components/PageFrame";
-import { PreorderForm } from "@/components/PreorderForm";
-import { FaqSection, HowToBuy, TrustSection } from "@/components/CommerceSections";
-
-export const metadata = { title: "Pedidos y contacto · OVRLMT", description: "Compra tu pieza OVRLMT producida sobre pedido y recibe atención directa." };
-
-export default async function Contact({ searchParams }: { searchParams: Promise<{ piece?: string }> }) {
-  const { piece } = await searchParams;
-  return <PageFrame>
-    <section className="contact-page"><div className="contact-copy"><p className="eyebrow">MADE TO ORDER / OVRLMT</p><h1>PEDIDOS<br /><em>Y CONTACTO.</em></h1><p>Todo se produce sobre pedido. Confirma tu compra por Clip o WhatsApp y comenzamos la producción de tu pieza.</p><div className="contact-meta"><div><span>CONFIRMACIÓN</span><p>VÍA WHATSAPP / CLIP</p></div><div><span>ATENCIÓN DIRECTA</span><Link href="mailto:contacto@ovrlmt.xyz">CONTACTO@OVRLMT.XYZ ↗</Link><Link href="https://instagram.com/ovrlmt.mx" target="_blank" rel="noreferrer">@OVRLMT.MX ↗</Link></div></div></div><div className="form-shell"><div className="form-top"><span>ORDER FORM</span><span>SECURE / API</span></div><PreorderForm initialProduct={piece} /></div></section>
-    <HowToBuy /><TrustSection /><FaqSection />
-  </PageFrame>;
+import { WHATSAPP_NUMBER } from "@/data/store";
+export const metadata = {
+  title: "Contacto",
+  description:
+    "Atención OVRLMT en Puebla. Consulta tu pedido, talla o envío por WhatsApp, Instagram o correo.",
+  alternates: { canonical: "/contact" },
+};
+export default function Contact() {
+  return (
+    <PageFrame>
+      <section className="page-hero">
+        <p className="eyebrow">PUEBLA, MÉXICO</p>
+        <h1>HABLEMOS.</h1>
+        <div className="page-intro">
+          <p>
+            Tu pieza, tu talla o tu pedido.
+            <br />
+            Estamos para ayudarte.
+          </p>
+        </div>
+      </section>
+      <section className="contact-options section-pad">
+        <Link className="btn primary" href={`https://wa.me/${WHATSAPP_NUMBER}`}>
+          WHATSAPP ↗
+        </Link>
+        <Link className="btn ghost" href="mailto:contacto@ovrlmt.xyz">
+          CONTACTO@OVRLMT.XYZ
+        </Link>
+        <Link className="btn ghost" href="https://instagram.com/ovrlmt.mx">
+          INSTAGRAM ↗
+        </Link>
+        <Link className="btn ghost" href="/cuenta">
+          CONSULTAR MIS PEDIDOS
+        </Link>
+        <Link className="text-link" href="/personalizados">
+          SERVICIO DE PERSONALIZADOS ↗
+        </Link>
+      </section>
+    </PageFrame>
+  );
 }

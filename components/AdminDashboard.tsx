@@ -7,6 +7,7 @@ import { ADMIN_EMAIL } from "@/src/lib/authConfig";
 import { AdminShippingPanel, type ShippingAdminOrder } from "@/components/AdminShippingPanel";
 import { AdminReviewsPanel } from "@/components/AdminReviewsPanel";
 import { AdminChangesPanel } from "@/components/AdminChangesPanel";
+import { AdminWholesalePanel } from "@/components/AdminWholesalePanel";
 import { AdminCouponsPanel } from "@/components/AdminCouponsPanel";
 import { getOrderStatusLabel, ORDER_STATUSES, PRODUCTION_STATUSES, type OrderStatus, type ProductionStatus } from "@/src/lib/orderStatus";
 import { clearBrowserSession, getBrowserSession } from "@/src/lib/sessionStorage";
@@ -108,7 +109,7 @@ export function AdminDashboard() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [stockRows, setStockRows] = useState<StockRow[]>([]);
-  const [tab, setTab] = useState<"orders" | "products" | "shipping" | "reviews" | "coupons" | "changes">("orders");
+  const [tab, setTab] = useState<"orders" | "products" | "shipping" | "reviews" | "coupons" | "changes" | "wholesale">("orders");
   const [orderQuery, setOrderQuery] = useState("");
   const [productQuery, setProductQuery] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | OrderStatus>("all");
@@ -129,7 +130,6 @@ export function AdminDashboard() {
   const [message, setMessage] = useState("");
 
   const selected = useMemo(() => orders.find((order) => order.id === selectedId), [orders, selectedId]);
-  const selectedProduct = useMemo(() => products.find((product) => product.id === selectedProductId), [products, selectedProductId]);
   const productPreviewImages = useMemo(() => productForm.images.split(/\n|,/).map((item) => item.trim()).filter(Boolean), [productForm.images]);
   const drops = useMemo(() => Array.from(new Set(products.map((product) => product.drop_number).filter((drop): drop is string => Boolean(drop)))).sort(), [products]);
   const filteredOrders = useMemo(() => {
@@ -197,43 +197,27 @@ export function AdminDashboard() {
   }
 
   async function loadOrders() {
-    setLoading(true);
-    setMessage("");
-    const token = await getToken();
-    if (!token) return;
-
-    const response = await fetch("/api/admin/orders", { headers: { Authorization: `Bearer ${token}` } });
-    const json = await response.json();
-    setLoading(false);
-
-    if (!response.ok) {
-      setMessage(json.message || "No pudimos cargar pedidos.");
-      return;
-    }
-
-    const nextOrders = json.orders || [];
-    setOrders(nextOrders);
-    if (!selectedId && nextOrders[0]) {
-      setSelectedId(nextOrders[0].id);
-      setStatus(nextOrders[0].status);
-      setNotes(nextOrders[0].notes || "");
-    }
+    setLoading(true); setMessage("");
+    try {
+      const token = await getToken(); if (!token) return;
+      const response = await fetch("/api/admin/orders", { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.message || "No pudimos cargar pedidos.");
+      const nextOrders = json.orders || []; setOrders(nextOrders);
+      if (!selectedId && nextOrders[0]) chooseOrder(nextOrders[0]);
+    } catch { setMessage("No pudimos cargar pedidos. Usa Actualizar para reintentar."); }
+    finally { setLoading(false); }
   }
-
   async function loadProducts() {
-    setMessage("");
-    const token = await getToken();
-    if (!token) return;
-    const response = await fetch("/api/admin/products", { headers: { Authorization: `Bearer ${token}` } });
-    const json = await response.json();
-    if (!response.ok) {
-      setMessage(json.message || "No pudimos cargar productos.");
-      return;
-    }
-    setProducts(json.products || []);
-    setStockRows(json.stock || []);
-    const first = (json.products || [])[0] as AdminProduct | undefined;
-    if (first && !selectedProductId) chooseProduct(first, json.stock || []);
+    try {
+      const token = await getToken(); if (!token) return;
+      const response = await fetch("/api/admin/products", { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.message || "No pudimos cargar productos.");
+      setProducts(json.products || []); setStockRows(json.stock || []);
+      const first = (json.products || [])[0] as AdminProduct | undefined;
+      if (first && !selectedProductId) chooseProduct(first, json.stock || []);
+    } catch { setMessage("No pudimos cargar productos. Usa Actualizar para reintentar."); }
   }
 
   useEffect(() => { void loadOrders(); void loadProducts(); }, []);
@@ -389,7 +373,7 @@ export function AdminDashboard() {
       <header>
         <div>
           <p className="eyebrow"><i /> ADMIN</p>
-          <h1>Control<br />Room.</h1>
+          <h1>Tu tienda, bajo control.</h1><p className="admin-subtitle">Pedidos, productos y precios en un solo lugar.</p>
         </div>
         <div className="account-actions">
           <button onClick={() => { void loadOrders(); void loadProducts(); }} disabled={loading}><RefreshCw size={15} /> ACTUALIZAR</button>
@@ -406,13 +390,15 @@ export function AdminDashboard() {
         <article><span><Eye size={15} /> DROP LIVE</span><strong>{adminStats.liveProducts}</strong><small>productos activos</small></article>
         <article><span><Mail size={15} /> VENTAS PAGADAS</span><strong>{money(adminStats.revenue)}</strong><small>solo pagos confirmados</small></article>
       </div>
-      <div className="admin-tabs"><button className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>PEDIDOS</button><button className={tab === "shipping" ? "active" : ""} onClick={() => setTab("shipping")}>ENVÍOS</button><button className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>PRODUCTOS</button><button className={tab === "coupons" ? "active" : ""} onClick={() => setTab("coupons")}>CUPONES</button><button className={tab === "reviews" ? "active" : ""} onClick={() => setTab("reviews")}>RESEÑAS</button><button className={tab === "changes" ? "active" : ""} onClick={() => setTab("changes")}>CAMBIOS</button></div>
-      {lowStockProducts.length > 0 && <div className="low-stock-alert"><AlertTriangle size={15} /><b>STOCK BAJO</b>{lowStockProducts.map((product) => <span key={product.id}>{product.name}</span>)}</div>}
-      {tab === "shipping" ? <AdminShippingPanel orders={orders} getToken={getToken} reloadOrders={loadOrders} /> : tab === "reviews" ? <AdminReviewsPanel products={products} getToken={getToken} /> : tab === "coupons" ? <AdminCouponsPanel getToken={getToken} /> : tab === "changes" ? <AdminChangesPanel getToken={getToken} /> : tab === "orders" ? <div className="admin-grid">
+      <nav className="admin-tabs" aria-label="Secciones de administración">{([
+        ["orders", "Pedidos"], ["products", "Productos"], ["wholesale", "Mayoreo"], ["coupons", "Cupones"], ["shipping", "Envíos"], ["reviews", "Reseñas"], ["changes", "Cambios"],
+      ] as const).map(([key, label]) => <button key={key} aria-current={tab === key ? "page" : undefined} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label}</button>)}</nav>
+      {tab === "products" && lowStockProducts.length > 0 && <div className="low-stock-alert"><AlertTriangle size={15} /><b>STOCK BAJO</b>{lowStockProducts.map((product) => <span key={product.id}>{product.name}</span>)}</div>}
+      {tab === "wholesale" ? <AdminWholesalePanel getToken={getToken} /> : tab === "shipping" ? <AdminShippingPanel orders={orders} getToken={getToken} reloadOrders={loadOrders} /> : tab === "reviews" ? <AdminReviewsPanel products={products} getToken={getToken} /> : tab === "coupons" ? <AdminCouponsPanel getToken={getToken} /> : tab === "changes" ? <AdminChangesPanel getToken={getToken} /> : tab === "orders" ? <div className="admin-grid">
         <div className="admin-orders">
           <div className="admin-list-tools">
-            <label><Search size={14} /><input value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} placeholder="Buscar pedido, cliente, correo..." /></label>
-            <select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as "all" | OrderStatus)}><option value="all">Todos los estados</option>{ORDER_STATUSES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select>
+            <label><Search size={14} /><input aria-label="Buscar pedidos" value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} placeholder="Buscar pedido, cliente, correo..." /></label>
+            <select aria-label="Filtrar por estado del pedido" value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as "all" | OrderStatus)}><option value="all">Todos los estados</option>{ORDER_STATUSES.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select>
           </div>
           {loading ? <p>CARGANDO</p> : filteredOrders.length ? filteredOrders.map((order) => (
             <button key={order.id} className={selectedId === order.id ? "active" : ""} onClick={() => chooseOrder(order)}>
