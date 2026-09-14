@@ -21,19 +21,19 @@ export async function GET(request: Request) {
   const supabase = getSupabaseAdmin();
   const fullQuery = await supabase
     .from("preorders")
-    .select("id,order_code,customer_name,customer_email,customer_whatsapp,customer_company,product_name,size,quantity,subtotal_mxn,discount_code,discount_mxn,shipping_mxn,total_mxn,status,production_status,refund_status,refund_reference,address_country,address_street,address_exterior_number,address_interior_number,address_neighborhood,address_reference,address_city,address_state,address_line,postal_code,notes,payment_provider,payment_method,payment_status,payment_receipt_no,paid_at,shipping_status,tracking_id,tracking_link,shipping_provider,shipping_cost_real,created_at,updated_at,shipments(id,provider,provider_id,provider_service_id,service_name,rate_uuid,trx_id,guide_id,tracking_id,tracking_link,shipping_cost,status,created_at,updated_at)")
+    .select("id,order_code,customer_name,customer_email,customer_whatsapp,customer_company,product_name,size,items,quantity,subtotal_mxn,discount_code,discount_mxn,shipping_mxn,total_mxn,status,production_status,refund_status,refund_reference,address_country,address_street,address_exterior_number,address_interior_number,address_neighborhood,address_reference,address_city,address_state,address_line,postal_code,notes,payment_provider,payment_method,payment_status,payment_receipt_no,paid_at,shipping_status,tracking_id,tracking_link,shipping_provider,shipping_cost_real,created_at,updated_at,shipments(id,provider,provider_id,provider_service_id,service_name,rate_uuid,trx_id,guide_id,tracking_id,tracking_link,shipping_cost,status,created_at,updated_at)")
     .order("created_at", { ascending: false })
     .limit(100);
 
   const fallbackQuery = fullQuery.error ? await supabase
     .from("preorders")
-    .select("id,order_code,customer_name,customer_email,customer_whatsapp,customer_company,product_name,size,quantity,subtotal_mxn,discount_code,discount_mxn,shipping_mxn,total_mxn,status,production_status,refund_status,refund_reference,address_country,address_street,address_exterior_number,address_interior_number,address_neighborhood,address_reference,address_city,address_state,address_line,postal_code,notes,payment_provider,payment_method,payment_status,payment_receipt_no,paid_at,created_at,updated_at")
+    .select("id,order_code,customer_name,customer_email,customer_whatsapp,customer_company,product_name,size,items,quantity,subtotal_mxn,discount_code,discount_mxn,shipping_mxn,total_mxn,status,production_status,refund_status,refund_reference,address_country,address_street,address_exterior_number,address_interior_number,address_neighborhood,address_reference,address_city,address_state,address_line,postal_code,notes,payment_provider,payment_method,payment_status,payment_receipt_no,paid_at,created_at,updated_at")
     .order("created_at", { ascending: false })
     .limit(100) : null;
 
   const legacyFallbackQuery = fallbackQuery?.error ? await supabase
     .from("preorders")
-    .select("id,order_code,customer_name,customer_email,customer_whatsapp,product_name,size,quantity,subtotal_mxn,discount_code,discount_mxn,shipping_mxn,total_mxn,status,address_city,address_state,address_line,postal_code,notes,created_at,updated_at")
+    .select("id,order_code,customer_name,customer_email,customer_whatsapp,product_name,size,items,quantity,subtotal_mxn,discount_code,discount_mxn,shipping_mxn,total_mxn,status,address_city,address_state,address_line,postal_code,notes,created_at,updated_at")
     .order("created_at", { ascending: false })
     .limit(100) : null;
 

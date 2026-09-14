@@ -9,6 +9,7 @@ import { getOrderStatusLabel } from "@/src/lib/orderStatus";
 import { ADMIN_EMAIL } from "@/src/lib/authConfig";
 import { clearBrowserSession, getBrowserSession } from "@/src/lib/sessionStorage";
 import type { ProductSize } from "@/data/store";
+import { OrderItemSizes } from "@/components/OrderItemSizes";
 
 type OrderItem = { slug: string; name: string; size: ProductSize; quantity: number; unitPriceMxn: number };
 type CustomerOrder = {
@@ -153,7 +154,7 @@ export function AccountDashboard() {
             const currentStep = Math.max(0, productionSteps.indexOf(order.production_status || "received"));
             return (
               <article key={order.id}>
-                <div><span>{order.order_code}</span><h2>{order.product_name}</h2><p>{order.quantity}x / TALLA {order.size}</p></div>
+                <div><span>{order.order_code}</span><h2>{order.product_name}</h2><p><OrderItemSizes items={order.items} size={order.size} quantity={order.quantity} /></p></div>
                 <div><span>ESTADO</span><strong>{getOrderStatusLabel(order.status)}</strong><p>{order.notes || "Sin notas nuevas por ahora."}</p></div>
                 <div><span>TOTAL</span><strong>{money(order.total_mxn)}</strong><p>Actualizado {new Date(order.updated_at).toLocaleDateString("es-MX")}</p></div>
                 <div className="production-timeline" aria-label="Progreso de producción">

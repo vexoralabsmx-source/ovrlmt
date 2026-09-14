@@ -12,6 +12,7 @@ import { AdminCouponsPanel } from "@/components/AdminCouponsPanel";
 import { getOrderStatusLabel, ORDER_STATUSES, PRODUCTION_STATUSES, type OrderStatus, type ProductionStatus } from "@/src/lib/orderStatus";
 import { clearBrowserSession, getBrowserSession } from "@/src/lib/sessionStorage";
 import { SIZES, type ProductSize } from "@/data/store";
+import { OrderItemSizes, type OrderSizeItem } from "@/components/OrderItemSizes";
 
 type AdminOrder = {
   id: string;
@@ -22,6 +23,7 @@ type AdminOrder = {
   customer_company?: string | null;
   product_name: string;
   size: string;
+  items?: OrderSizeItem[] | null;
   quantity: number;
   subtotal_mxn: number;
   discount_code?: string | null;
@@ -422,7 +424,7 @@ export function AdminDashboard() {
               <strong>{money(selected.total_mxn)}</strong>
             </div>
             <div className="admin-meta">
-              <span>{selected.quantity}x / TALLA {selected.size}</span>
+              <span style={{ display: "block", lineHeight: 1.8, overflowWrap: "anywhere" }}><OrderItemSizes items={selected.items} size={selected.size} quantity={selected.quantity} /></span>
               <span>{selected.address_city}, {selected.address_state}</span>
               <span>{new Date(selected.created_at).toLocaleDateString("es-MX")}</span>
               {selected.payment_provider && <span>PAGO {selected.payment_provider.toUpperCase()} / {selected.payment_status || "PENDIENTE"}</span>}
